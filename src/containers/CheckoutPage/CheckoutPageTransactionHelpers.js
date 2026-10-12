@@ -2,6 +2,7 @@
 import { findRouteByRouteName } from '../../util/routes';
 import { ensureStripeCustomer, ensureTransaction } from '../../util/data';
 import { formatMoney } from '../../util/currency';
+import { buyShippingLabel } from '../../util/api';
 import { NEGOTIATION_PROCESS_NAME, resolveLatestProcessName } from '../../transactions/transaction';
 import { storeData } from './CheckoutPageSessionHelpers';
 
@@ -117,6 +118,31 @@ export const getShippingDetailsMaybe = formValues => {
         },
       }
     : {};
+};
+
+/**
+ * Get shipping details for the transaction's protectedData from the ship-to address
+ * saved in Shippo checkout (US only).
+ *
+ * @param {Object} address { name, phone, street1, streetNo, city, state, zip, country }
+ * @returns {Object} { shippingDetails } in the same shape as getShippingDetailsMaybe
+ */
+export const getShippingDetailsFromAddress = address => {
+  const { name, phone, street1, streetNo, city, state, zip, country } = address || {};
+  return {
+    shippingDetails: {
+      name,
+      phoneNumber: phone,
+      address: {
+        city,
+        country: country || 'US',
+        line1: street1,
+        line2: streetNo,
+        postalCode: zip,
+        state,
+      },
+    },
+  };
 };
 
 /**
@@ -293,8 +319,24 @@ export const processCheckoutWithPayment = (orderParams, extraPaymentParams) => {
     });
   };
 
+  //////////////////////////////////////////////////////////////
+  // Step 4: buy Shippo shipping label if the order is shipped //
+  //////////////////////////////////////////////////////////////
+  const fnBuyShippingLabelMaybe = fnParams => {
+    // fnParams should be the transaction entity returned in step 3
+    const order = fnParams;
+    const { deliveryMethod, shippingRateId } = order?.attributes?.protectedData || {};
+
+    // Label errors don't fail the order: provider can retry on the transaction page.
+    return deliveryMethod === 'shipping' && shippingRateId
+      ? buyShippingLabel({ transactionId: order.id })
+          .then(() => order)
+          .catch(() => order)
+      : Promise.resolve(order);
+  };
+
   //////////////////////////////////////////////////////////
-  // Step 4: optionally save card as defaultPaymentMethod //
+  // Step 5: optionally save card as defaultPaymentMethod //
   //////////////////////////////////////////////////////////
   const fnSavePaymentMethod = fnParams => {
     const pi = createdPaymentIntent || paymentIntent;
@@ -328,6 +370,7 @@ export const processCheckoutWithPayment = (orderParams, extraPaymentParams) => {
     fnRequestPayment,
     fnConfirmCardPayment,
     fnConfirmPayment,
+    fnBuyShippingLabelMaybe,
     fnSavePaymentMethod
   );
 

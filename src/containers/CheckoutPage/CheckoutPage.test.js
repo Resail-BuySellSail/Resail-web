@@ -22,7 +22,7 @@ import CheckoutPageWithInquiryProcess from './CheckoutPageWithInquiryProcess';
 import checkoutPageReducer, { setInitialValues } from './CheckoutPage.duck';
 
 const { Money } = sdkTypes;
-const { screen } = testingLibrary;
+const { screen, userEvent } = testingLibrary;
 const noop = () => null;
 
 const routeConfiguration = [
@@ -104,40 +104,57 @@ describe('CheckoutPage', () => {
     routeConfiguration,
   };
 
+  const purchaseListing = createListing(
+    'listing1',
+    { publicData: { transactionProcessAlias: 'default-purchase/release-1', unitType: 'item' } },
+    { author: createUser('author'), images: [createImage('first-image')] }
+  );
+
+  const shippingFeeLineItem = [
+    {
+      code: 'line-item/shipping-fee',
+      includeFor: ['customer'],
+      unitPrice: new Money(500, 'USD'),
+      quantity: new Decimal(1),
+      lineTotal: new Money(500, 'USD'),
+      reversal: false,
+    },
+  ];
+
+  const shipToAddress = {
+    name: 'Jane Rider',
+    phone: '3055550100',
+    street1: '1 Stable Lane',
+    streetNo: '',
+    city: 'Wellington',
+    state: 'FL',
+    zip: '33414',
+    country: 'US',
+  };
+
+  const purchaseProps = {
+    ...commonProps,
+    pageData: {
+      orderData: { quantity: 2, deliveryMethod: 'shipping' },
+      listing: purchaseListing,
+    },
+    processName: 'default-purchase',
+    listingTitle: purchaseListing.attributes.title,
+    title: 'CheckoutPage.default-purchase.title',
+    speculatedTransaction: createTransaction({
+      id: 'tx1',
+      lineItems: lineItems.concat(shippingFeeLineItem),
+      total: new Money(2500, 'USD'),
+    }),
+    onUpdateProfile: () => Promise.resolve(),
+    onFetchShippingRates: noop,
+    shipment: null,
+    fetchShippingRatesInProgress: false,
+    fetchShippingRatesError: null,
+  };
+
   it('Check that purchase has relevant info', () => {
-    const listing = createListing(
-      'listing1',
-      { publicData: { transactionProcessAlias: 'default-purchase/release-1', unitType: 'item' } },
-      { author: createUser('author'), images: [createImage('first-image')] }
-    );
-
-    const shippingFeeLineItem = [
-      {
-        code: 'line-item/shipping-fee',
-        includeFor: ['customer', 'provider'],
-        unitPrice: new Money(500, 'USD'),
-        quantity: new Decimal(1),
-        lineTotal: new Money(500, 'USD'),
-        reversal: false,
-      },
-    ];
-    const props = {
-      ...commonProps,
-      pageData: {
-        orderData: { quantity: 2, deliveryMethod: 'shipping' },
-        listing,
-      },
-      processName: 'default-purchase',
-      listingTitle: listing.attributes.title,
-      title: 'CheckoutPage.default-purchase.title',
-      speculatedTransaction: createTransaction({
-        id: 'tx1',
-        lineItems: lineItems.concat(shippingFeeLineItem),
-        total: new Money(2500, 'USD'),
-      }),
-    };
-
-    render(<CheckoutPageWithPayment {...props} />);
+    render(<CheckoutPageWithPayment {...purchaseProps} />);
 
     const purchaseTitle = 'CheckoutPage.default-purchase.title';
     expect(screen.getByRole('heading', { name: purchaseTitle })).toBeInTheDocument();
@@ -150,29 +167,78 @@ describe('CheckoutPage', () => {
 
     const getTextbox = name => screen.getByRole('textbox', { name });
 
-    const shippingHeading = 'ShippingDetails.title';
+    // Step 1: ship-to address (no saved address)
+    const shippingHeading = 'CheckoutPage.shippingAddressHeading';
     expect(screen.getByRole('heading', { name: shippingHeading })).toBeInTheDocument();
-    expect(getTextbox('ShippingDetails.recipientNameLabel')).toBeInTheDocument();
-    expect(getTextbox('ShippingDetails.recipientPhoneNumberLabel')).toBeInTheDocument();
-    expect(getTextbox('ShippingDetails.addressLine1Label')).toBeInTheDocument();
-    expect(getTextbox('ShippingDetails.addressLine2Label')).toBeInTheDocument();
-    expect(getTextbox('ShippingDetails.postalCodeLabel')).toBeInTheDocument();
-    expect(getTextbox('ShippingDetails.cityLabel')).toBeInTheDocument();
-    expect(getTextbox('ShippingDetails.stateLabel')).toBeInTheDocument();
+    expect(getTextbox('ShippingAddressForm.nameLabel')).toBeInTheDocument();
+    expect(getTextbox('ShippingAddressForm.phoneLabel')).toBeInTheDocument();
+    expect(getTextbox('ShippingAddressForm.streetLabel')).toBeInTheDocument();
+    expect(getTextbox('ShippingAddressForm.aptLabel')).toBeInTheDocument();
+    expect(getTextbox('ShippingAddressForm.cityLabel')).toBeInTheDocument();
+    expect(getTextbox('ShippingAddressForm.zipLabel')).toBeInTheDocument();
+    expect(
+      screen.getByRole('combobox', { name: 'ShippingAddressForm.stateLabel' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'CheckoutPage.saveShippingAddress' })
+    ).toBeInTheDocument();
 
+    // Payment form is shown on the last step
+    expect(
+      screen.queryByRole('heading', { name: 'StripePaymentForm.paymentHeading' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('Check that purchase with saved ship-to address shows rates and then payment', async () => {
+    const user = userEvent.setup();
+    const fetchSpeculatedTransaction = jest.fn();
+    const onFetchShippingRates = jest.fn();
+    const rate = {
+      objectId: 'rate-1',
+      provider: 'USPS',
+      servicelevelName: 'Priority Mail',
+      durationTerms: 'Delivery within 1, 2, or 3 days.',
+      amount: '8.79',
+      currency: 'USD',
+    };
+    const props = {
+      ...purchaseProps,
+      currentUser: createCurrentUser('currentUser', {
+        profile: { firstName: 'Jane', lastName: 'Rider', privateData: { shipToAddress } },
+      }),
+      fetchSpeculatedTransaction,
+      onFetchShippingRates,
+      shipment: { shipmentId: 'shipment-1', rates: [rate], messages: [] },
+    };
+
+    render(<CheckoutPageWithPayment {...props} />);
+
+    // Step 2: shipping method
+    expect(onFetchShippingRates).toHaveBeenCalledWith(purchaseListing.id);
+    const shippingMethodHeading = 'CheckoutPage.shippingMethodHeading';
+    expect(screen.getByRole('heading', { name: shippingMethodHeading })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /USPS/ }));
+
+    // Transaction is speculated again with the selected rate
+    expect(fetchSpeculatedTransaction).toHaveBeenCalled();
+    const [orderParams] = fetchSpeculatedTransaction.mock.calls[0];
+    expect(orderParams.shippingRateId).toEqual('rate-1');
+    expect(orderParams.protectedData.shipmentId).toEqual('shipment-1');
+
+    // Step 3: payment
+    expect(screen.getByRole('heading', { name: 'CheckoutPage.shipToHeading' })).toBeInTheDocument();
     const paymentHeading = 'StripePaymentForm.paymentHeading';
     expect(screen.getByRole('heading', { name: paymentHeading })).toBeInTheDocument();
-
     const billingDetails = 'StripePaymentForm.billingDetails';
     expect(screen.getByRole('heading', { name: billingDetails })).toBeInTheDocument();
-    expect(getTextbox('StripePaymentForm.billingDetailsNameLabel')).toBeInTheDocument();
-    expect(getTextbox('StripePaymentAddress.addressLine1Label')).toBeInTheDocument();
-    expect(getTextbox('StripePaymentAddress.addressLine2Label')).toBeInTheDocument();
-    expect(getTextbox('StripePaymentAddress.postalCodeLabel')).toBeInTheDocument();
-    expect(getTextbox('StripePaymentAddress.cityLabel')).toBeInTheDocument();
-    expect(getTextbox('StripePaymentAddress.stateLabel')).toBeInTheDocument();
-    expect(getTextbox('StripePaymentForm.messageLabel')).toBeInTheDocument();
-
+    // Billing address is prefilled with the ship-to address
+    expect(
+      screen.getByRole('textbox', { name: 'StripePaymentAddress.addressLine1Label' })
+    ).toHaveValue('1 Stable Lane');
+    expect(
+      screen.getByRole('textbox', { name: 'StripePaymentForm.messageLabel' })
+    ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'StripePaymentForm.submitPaymentInfo' })
     ).toBeInTheDocument();
@@ -401,6 +467,9 @@ describe('CheckoutPage', () => {
         confirmPaymentError: null,
         initiateInquiryError: null,
         initiateInquiryInProgress: false,
+        shipment: null,
+        fetchShippingRatesInProgress: false,
+        fetchShippingRatesError: null,
       };
 
       it('should return the initial state', () => {

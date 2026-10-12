@@ -826,11 +826,9 @@ describe('EditListingPage', () => {
       expect(
         getByRole('checkbox', { name: /EditListingDeliveryForm.shippingLabel/i })
       ).not.toBeChecked();
+      expect(getByRole('textbox', { name: 'EditListingDeliveryForm.nameLabel' })).toBeDisabled();
       expect(
-        getByRole('textbox', { name: 'EditListingDeliveryForm.shippingOneItemLabel' })
-      ).toBeDisabled();
-      expect(
-        getByRole('textbox', { name: 'EditListingDeliveryForm.shippingAdditionalItemsLabel' })
+        getByRole('spinbutton', { name: 'EditListingDeliveryForm.packageWeightLabel' })
       ).toBeDisabled();
 
       expect(
@@ -842,11 +840,9 @@ describe('EditListingPage', () => {
     await user.click(getByRole('checkbox', { name: /EditListingDeliveryForm.shippingLabel/i }));
 
     expect(getByRole('checkbox', { name: /EditListingDeliveryForm.shippingLabel/i })).toBeChecked();
+    expect(getByRole('textbox', { name: 'EditListingDeliveryForm.nameLabel' })).toBeEnabled();
     expect(
-      getByRole('textbox', { name: 'EditListingDeliveryForm.shippingOneItemLabel' })
-    ).toBeEnabled();
-    expect(
-      getByRole('textbox', { name: 'EditListingDeliveryForm.shippingAdditionalItemsLabel' })
+      getByRole('spinbutton', { name: 'EditListingDeliveryForm.packageWeightLabel' })
     ).toBeEnabled();
   });
 
@@ -1108,10 +1104,10 @@ describe('EditListingPage', () => {
         getByRole('checkbox', { name: /EditListingDeliveryForm.shippingLabel/i })
       ).toBeChecked();
       expect(
-        getByRole('textbox', { name: 'EditListingDeliveryForm.shippingOneItemLabel' })
+        getByRole('textbox', { name: 'EditListingDeliveryForm.nameLabel' })
       ).toBeInTheDocument();
       expect(
-        getByRole('textbox', { name: 'EditListingDeliveryForm.shippingAdditionalItemsLabel' })
+        getByRole('spinbutton', { name: 'EditListingDeliveryForm.packageWeightLabel' })
       ).toBeInTheDocument();
 
       expect(

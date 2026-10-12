@@ -1,7 +1,6 @@
 const {
   calculateQuantityFromDates,
   calculateQuantityFromHours,
-  calculateShippingFee,
   getProviderCommissionMaybe,
   getCustomerCommissionMaybe,
 } = require('./lineItemHelpers');
@@ -11,38 +10,30 @@ const { Money } = types;
 /**
  * Get quantity and add extra line-items that are related to delivery method
  *
- * @param {Object} orderData should contain stockReservationQuantity and deliveryMethod
- * @param {*} publicData should contain shipping prices
+ * Note: shipping fee is the Shippo rate selected by the customer. It's resolved on the server
+ * (see resolveShippingFeeMaybe in api-util/shippo.js) and passed here as orderData.shippingFee.
+ * The fee is included only for the customer: the marketplace keeps it to buy the shipping label.
+ *
+ * @param {Object} orderData should contain stockReservationQuantity, deliveryMethod and shippingFee
  * @param {*} currency should point to the currency of listing's price.
  */
-const getItemQuantityAndLineItems = (orderData, publicData, currency) => {
-  // Check delivery method and shipping prices
+const getItemQuantityAndLineItems = (orderData, currency) => {
   const quantity = orderData ? orderData.stockReservationQuantity : null;
   const deliveryMethod = orderData && orderData.deliveryMethod;
   const isShipping = deliveryMethod === 'shipping';
-  const isPickup = deliveryMethod === 'pickup';
-  const { shippingPriceInSubunitsOneItem, shippingPriceInSubunitsAdditionalItems } =
-    publicData || {};
-
-  // Calculate shipping fee if applicable
-  const shippingFee = isShipping
-    ? calculateShippingFee(
-        shippingPriceInSubunitsOneItem,
-        shippingPriceInSubunitsAdditionalItems,
-        currency,
-        quantity
-      )
-    : null;
+  const shippingFee = orderData?.shippingFee;
+  const hasShippingFee =
+    isShipping && shippingFee instanceof Money && shippingFee.currency === currency;
 
   // Add line-item for given delivery method.
   // Note: by default, pickup considered as free and, therefore, we don't add pickup fee line-item
-  const deliveryLineItem = !!shippingFee
+  const deliveryLineItem = hasShippingFee
     ? [
         {
           code: 'line-item/shipping-fee',
           unitPrice: shippingFee,
           quantity: 1,
-          includeFor: ['customer', 'provider'],
+          includeFor: ['customer'],
         },
       ]
     : [];
@@ -185,7 +176,7 @@ exports.transactionLineItems = (listing, orderData, providerCommission, customer
   // E.g. by default, "shipping-fee" is tied to 'item' aka buying products.
   const quantityAndExtraLineItems =
     unitType === 'item'
-      ? getItemQuantityAndLineItems(orderData, publicData, currency)
+      ? getItemQuantityAndLineItems(orderData, currency)
       : unitType === 'file'
       ? getDigitalItemQuantityAndLineItems(orderData)
       : unitType === 'fixed'

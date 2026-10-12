@@ -9,6 +9,7 @@ const {
   isIntentionToUpdateOffer,
   throwErrorIfNegotiationOfferHasInvalidHistory,
 } = require('../api-util/negotiation');
+const { resolveShippingFeeMaybe } = require('../api-util/shippingFee');
 const {
   createCookieTokenStore,
   getSdk,
@@ -145,16 +146,21 @@ module.exports = (req, res) => {
       const { providerCommission, customerCommission } =
         commissionAsset?.type === 'jsonAsset' ? commissionAsset.attributes.data : {};
 
-      lineItems = transactionLineItems(
-        listing,
-        getFullOrderData(orderData, bodyParams, currency, existingOffers),
-        providerCommission,
-        customerCommission
+      // Shipping fee is fetched from Shippo (the rate selected by customer)
+      return resolveShippingFeeMaybe({ orderData, listing, currency, isSpeculative }).then(
+        shippingFee => {
+          lineItems = transactionLineItems(
+            listing,
+            { ...getFullOrderData(orderData, bodyParams, currency, existingOffers), shippingFee },
+            providerCommission,
+            customerCommission
+          );
+
+          metadataMaybe = getUpdatedMetadata(orderData, transitionName, existingMetadata);
+
+          return getTrustedSdk(req, res, tokenStore);
+        }
       );
-
-      metadataMaybe = getUpdatedMetadata(orderData, transitionName, existingMetadata);
-
-      return getTrustedSdk(req, res, tokenStore);
     })
     .then(trustedSdk => {
       // Pass role based params to make sure that protectedData only contains protected data

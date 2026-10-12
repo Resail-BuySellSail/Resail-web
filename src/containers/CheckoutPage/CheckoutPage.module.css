@@ -259,6 +259,67 @@
   flex-grow: 1;
 }
 
+/* Shippo checkout steps */
+.shippingStep {
+  display: flex;
+  flex-direction: column;
+}
+
+.shippingStepHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+
+  @media (--viewportMedium) {
+    margin-bottom: 24px;
+  }
+}
+
+.shippingStepHeading {
+  margin: 0;
+  padding: 0;
+}
+
+.shippingStepChange {
+  composes: marketplaceSmallFontStyles from global;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.shippingSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-bottom: 18px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--colorGrey100);
+
+  @media (--viewportMedium) {
+    gap: 24px;
+    padding-bottom: 24px;
+    margin-bottom: 32px;
+  }
+}
+
+.shippingSummaryRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.shippingSummaryText {
+  composes: marketplaceSmallFontStyles from global;
+  color: var(--colorGrey700);
+  margin: 6px 0 0 0;
+
+  @media (--viewportMedium) {
+    margin-top: 8px;
+  }
+}
+
 /* Details column is visible only on desktop */
 .detailsContainerDesktop {
   display: none;

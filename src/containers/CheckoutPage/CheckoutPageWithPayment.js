@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 // Import contexts and util modules
 import { FormattedMessage, intlShape } from '../../util/reactIntl';
@@ -10,6 +10,7 @@ import {
 import { propTypes } from '../../util/types';
 import { ensureTransaction } from '../../util/data';
 import { createSlug } from '../../util/urlHelpers';
+import { getProfileShipToAddress, isCompleteShippingAddress } from '../../util/shipping';
 import {
   isTransactionInitiateListingNotFoundError,
   isTransactionsTransitionInvalidTransition,
@@ -23,7 +24,16 @@ import {
 } from '../../transactions/transaction';
 
 // Import shared components
-import { H3, H4, NamedLink, OrderBreakdown, Page, TopbarSimplified } from '../../components';
+import {
+  H3,
+  H4,
+  InlineTextButton,
+  NamedLink,
+  OrderBreakdown,
+  Page,
+  ShippingAddressForm,
+  TopbarSimplified,
+} from '../../components';
 
 // Session helpers file needs to be imported before other CheckoutPage modules that use it
 import { clearData } from './CheckoutPageSessionHelpers';
@@ -32,6 +42,7 @@ import {
   bookingDatesMaybe,
   getBillingDetails,
   getFormattedTotalPrice,
+  getShippingDetailsFromAddress,
   getShippingDetailsMaybe,
   getTransactionTypeData,
   hasDefaultPaymentMethod,
@@ -43,6 +54,9 @@ import {
 import { getErrorMessages } from './ErrorMessages';
 
 import StripePaymentForm from './StripePaymentForm/StripePaymentForm';
+import ShippingMethodForm, {
+  formatShippingRatePrice,
+} from './ShippingMethodForm/ShippingMethodForm';
 import DetailsSideCard from './DetailsSideCard';
 import MobileListingImage from './MobileListingImage';
 import MobileOrderBreakdown from './MobileOrderBreakdown';
@@ -67,6 +81,11 @@ const paymentFlow = (selectedPaymentMethod, saveAfterOnetimePayment) => {
     ? PAY_AND_SAVE_FOR_LATER_USE
     : ONETIME_PAYMENT;
 };
+
+// Checkout steps when the order is shipped with Shippo
+const STEP_ADDRESS = 'address';
+const STEP_SHIPPING_METHOD = 'shippingMethod';
+const STEP_PAYMENT = 'payment';
 
 const capitalizeString = s => `${s.charAt(0).toUpperCase()}${s.substr(1)}`;
 
@@ -107,6 +126,9 @@ const prefixPriceVariantProperties = priceVariant => {
  * @param {Object} shippingDetails shipping address if applicable.
  * @param {Object} optionalPaymentParams (E.g. paymentMethod or setupPaymentMethodForSaving)
  * @param {Object} config app-wide configs. This contains hosted configs too.
+ * @param {Object} transactionFieldProtectedData transaction fields saved to protected data.
+ * @param {string} customerDefaultMessage initial message from the customer.
+ * @param {Object} shippingRateParams selected Shippo rate: { shippingRateId, shipmentId }
  * @returns orderParams.
  */
 const getOrderParams = (
@@ -115,7 +137,8 @@ const getOrderParams = (
   optionalPaymentParams,
   config,
   transactionFieldProtectedData,
-  customerDefaultMessage
+  customerDefaultMessage,
+  shippingRateParams = {}
 ) => {
   const quantity = pageData.orderData?.quantity;
   const quantityMaybe = quantity ? { quantity } : {};
@@ -133,6 +156,12 @@ const getOrderParams = (
 
   const customerDefaultMessageMaybe = customerDefaultMessage ? { customerDefaultMessage } : {};
 
+  // Shipping fee is resolved on the server from the selected Shippo rate (shippingRateId).
+  // The rate and shipment ids are also saved to protected data for buying the shipping label.
+  const { shippingRateId, shipmentId } = shippingRateParams;
+  const shippingRateIdMaybe = shippingRateId ? { shippingRateId } : {};
+  const shippingRateProtectedDataMaybe = shippingRateId ? { shippingRateId, shipmentId } : {};
+
   const protectedDataMaybe = {
     protectedData: {
       ...getTransactionTypeData(listingType, unitType, config),
@@ -141,6 +170,7 @@ const getOrderParams = (
       ...priceVariantMaybe,
       ...transactionFieldProtectedData,
       ...customerDefaultMessageMaybe,
+      ...shippingRateProtectedDataMaybe,
     },
   };
 
@@ -160,6 +190,7 @@ const getOrderParams = (
     ...seatsMaybe,
     ...bookingDatesMaybe(pageData.orderData?.bookingDates),
     ...priceVariantNameMaybe,
+    ...shippingRateIdMaybe,
     ...protectedDataMaybe,
     ...optionalPaymentParams,
   };
@@ -198,7 +229,7 @@ const fetchSpeculatedTransactionIfNeeded = (orderParams, pageData, fetchSpeculat
       : process.transitions.REQUEST_PAYMENT;
     const isPrivileged = process.isPrivileged(requestTransition);
 
-    fetchSpeculatedTransaction(
+    return fetchSpeculatedTransaction(
       orderParams,
       processAlias,
       transactionId,
@@ -245,7 +276,15 @@ export const loadInitialDataForStripePayments = ({
   fetchSpeculatedTransactionIfNeeded(orderParams, pageData, fetchSpeculatedTransaction);
 };
 
-const handleSubmit = (values, process, props, stripe, submitting, setSubmitting) => {
+const handleSubmit = (
+  values,
+  process,
+  props,
+  stripe,
+  submitting,
+  setSubmitting,
+  shippingCheckout = null
+) => {
   if (submitting) {
     return;
   }
@@ -313,7 +352,11 @@ const handleSubmit = (values, process, props, stripe, submitting, setSubmitting)
     setPageData,
   };
 
-  const shippingDetails = getShippingDetailsMaybe(formValues);
+  // With Shippo checkout, the ship-to address is given on the first step (not in StripePaymentForm)
+  const { shipToAddress, shippingRateParams } = shippingCheckout || {};
+  const shippingDetails = shippingCheckout
+    ? getShippingDetailsFromAddress(shipToAddress)
+    : getShippingDetailsMaybe(formValues);
   // Note: optionalPaymentParams contains Stripe paymentMethod,
   // but that can also be passed on Step 2
   // stripe.confirmCardPayment(stripe, { payment_method: stripePaymentMethodId })
@@ -332,7 +375,8 @@ const handleSubmit = (values, process, props, stripe, submitting, setSubmitting)
     optionalPaymentParams,
     config,
     transactionFieldsProtectedData,
-    message
+    message,
+    shippingRateParams
   );
 
   // There are multiple XHR calls that needs to be made against Stripe API and Sharetribe Marketplace API on checkout with payments
@@ -447,6 +491,12 @@ const onStripeInitialized = (stripe, process, props) => {
  * @param {Object} props.routeConfiguration - The route configuration
  * @param {Object} props.history - The history object
  * @param {Object} props.history.push - The push state function of the history object
+ * @param {Function} props.fetchSpeculatedTransaction - The function to speculate the transaction
+ * @param {Function} props.onUpdateProfile - The function to save ship-to address to user's privateData
+ * @param {Function} props.onFetchShippingRates - The function to fetch Shippo rates for the listing
+ * @param {Object} props.shipment - Shippo shipment with rates: { shipmentId, rates, messages }
+ * @param {boolean} props.fetchShippingRatesInProgress - Whether the Shippo rates are being fetched
+ * @param {propTypes.error} props.fetchShippingRatesError - The error from fetching Shippo rates
  * @returns {JSX.Element}
  */
 export const CheckoutPageWithPayment = props => {
@@ -474,7 +524,21 @@ export const CheckoutPageWithPayment = props => {
     transactionFieldConfigs = [],
     showTransactionFields,
     config,
+    fetchSpeculatedTransaction,
+    onUpdateProfile,
+    onFetchShippingRates,
+    shipment,
+    fetchShippingRatesInProgress,
+    fetchShippingRatesError,
   } = props;
+
+  // Shippo checkout steps: ship-to address => shipping method (rate) => payment
+  const [checkoutStep, setCheckoutStep] = useState(STEP_ADDRESS);
+  const [selectedShippingRate, setSelectedShippingRate] = useState(null);
+  const [pendingShippingRateId, setPendingShippingRateId] = useState(null);
+  const [saveShipToAddressInProgress, setSaveShipToAddressInProgress] = useState(false);
+  const [saveShipToAddressError, setSaveShipToAddressError] = useState(null);
+  const didAutoAdvanceToShippingMethod = useRef(false);
 
   // Since the listing data is already given from the ListingPage
   // and stored to handle refreshes, it might not have the possible
@@ -522,6 +586,74 @@ export const CheckoutPageWithPayment = props => {
   const process = processName ? getProcess(processName) : null;
   const transitions = process.transitions;
   const isPaymentExpired = hasPaymentExpired(existingTransaction, process);
+
+  // Shipping is handled with Shippo: the customer gives the ship-to address and selects a rate,
+  // before the payment form is shown.
+  const isShippingCheckout =
+    orderData?.deliveryMethod === 'shipping' &&
+    !hasTransactionPassedPendingPayment(existingTransaction, process);
+  const shipToAddress = getProfileShipToAddress(currentUser);
+  const hasShipToAddress = isCompleteShippingAddress(shipToAddress);
+
+  // Speculate the transaction again, so that the order breakdown shows the shipping fee.
+  const speculateWithShippingRate = shippingRate => {
+    const shippingRateParams = shippingRate
+      ? { shippingRateId: shippingRate.objectId, shipmentId: shipment?.shipmentId }
+      : {};
+    const orderParams = getOrderParams(pageData, {}, {}, config, {}, null, shippingRateParams);
+    return Promise.resolve(
+      fetchSpeculatedTransactionIfNeeded(orderParams, pageData, fetchSpeculatedTransaction)
+    );
+  };
+
+  const showShippingMethodStep = () => {
+    if (selectedShippingRate) {
+      setSelectedShippingRate(null);
+      speculateWithShippingRate(null);
+    }
+    setCheckoutStep(STEP_SHIPPING_METHOD);
+    onFetchShippingRates(listing.id);
+  };
+
+  // If the customer has saved a ship-to address earlier, start from the shipping method step.
+  useEffect(() => {
+    if (isShippingCheckout && hasShipToAddress && !didAutoAdvanceToShippingMethod.current) {
+      didAutoAdvanceToShippingMethod.current = true;
+      showShippingMethodStep();
+    }
+  }, [isShippingCheckout, hasShipToAddress]);
+
+  const handleSaveShipToAddress = values => {
+    const { name, phone, street1, streetNo = '', city, state, zip, country } = values;
+    const address = { name, phone, street1, streetNo, city, state, zip, country };
+
+    setSaveShipToAddressInProgress(true);
+    setSaveShipToAddressError(null);
+    // Ship-to address is saved to the user's privateData, so that it's prefilled next time.
+    onUpdateProfile({ privateData: { shipToAddress: address } })
+      .then(() => {
+        setSaveShipToAddressInProgress(false);
+        didAutoAdvanceToShippingMethod.current = true;
+        showShippingMethodStep();
+      })
+      .catch(e => {
+        setSaveShipToAddressInProgress(false);
+        setSaveShipToAddressError(e);
+      });
+  };
+
+  // Move to the payment step only after the line-items (shipping fee) are updated.
+  const handleSelectShippingRate = shippingRate => {
+    setSelectedShippingRate(shippingRate);
+    setPendingShippingRateId(shippingRate.objectId);
+    speculateWithShippingRate(shippingRate).then(action => {
+      setPendingShippingRateId(null);
+      // Speculation errors are shown by the page (speculateTransactionError)
+      if (!action?.error) {
+        setCheckoutStep(STEP_PAYMENT);
+      }
+    });
+  };
 
   // Allow showing page when currentUser is still being downloaded,
   // but show payment form only when user info is loaded.
@@ -575,10 +707,20 @@ export const CheckoutPageWithPayment = props => {
   // If your marketplace works mostly in one country you can use initial values to select country automatically
   // e.g. {country: 'FI'}
 
-  const initialValuesForStripePayment = { name: userName, recipientName: userName };
-  const askShippingDetails =
-    orderData?.deliveryMethod === 'shipping' &&
-    !hasTransactionPassedPendingPayment(existingTransaction, process);
+  // With Shippo checkout, billing address is prefilled with the ship-to address.
+  const initialValuesForStripePayment = isShippingCheckout
+    ? {
+        name: shipToAddress.name || userName,
+        recipientName: shipToAddress.name || userName,
+        addressLine1: shipToAddress.street1,
+        addressLine2: shipToAddress.streetNo,
+        postal: shipToAddress.zip,
+        city: shipToAddress.city,
+        state: shipToAddress.state,
+        country: shipToAddress.country,
+      }
+    : { name: userName, recipientName: userName };
+  const showShippingSteps = isShippingCheckout && checkoutStep !== STEP_PAYMENT;
 
   const listingLocation = listing?.attributes?.publicData?.location;
   const showPickUpLocation = isPurchase && orderData?.deliveryMethod === 'pickup';
@@ -649,11 +791,123 @@ export const CheckoutPageWithPayment = props => {
             {errorMessages.retrievePaymentIntentErrorMessage}
             {errorMessages.paymentExpiredMessage}
 
-            {showPaymentForm ? (
+            {showPaymentForm && showShippingSteps ? (
+              <div className={css.shippingStep}>
+                <div className={css.shippingStepHeader}>
+                  <H4 as="h2" className={css.shippingStepHeading}>
+                    {checkoutStep === STEP_ADDRESS ? (
+                      <FormattedMessage id="CheckoutPage.shippingAddressHeading" />
+                    ) : (
+                      <FormattedMessage id="CheckoutPage.shippingMethodHeading" />
+                    )}
+                  </H4>
+                  {checkoutStep === STEP_SHIPPING_METHOD ? (
+                    <InlineTextButton
+                      type="button"
+                      className={css.shippingStepChange}
+                      onClick={() => setCheckoutStep(STEP_ADDRESS)}
+                    >
+                      <FormattedMessage id="CheckoutPage.changeShippingAddress" />
+                    </InlineTextButton>
+                  ) : null}
+                </div>
+
+                {checkoutStep === STEP_ADDRESS ? (
+                  <ShippingAddressForm
+                    formId="CheckoutPageShipToAddressForm"
+                    initialValues={shipToAddress}
+                    onSubmit={handleSaveShipToAddress}
+                    inProgress={saveShipToAddressInProgress}
+                    saveAddressError={saveShipToAddressError}
+                    submitButtonText={intl.formatMessage({
+                      id: 'CheckoutPage.saveShippingAddress',
+                    })}
+                  />
+                ) : (
+                  <ShippingMethodForm
+                    shipment={shipment}
+                    fetchShippingRatesInProgress={fetchShippingRatesInProgress}
+                    fetchShippingRatesError={fetchShippingRatesError}
+                    selectedShippingRate={selectedShippingRate}
+                    pendingShippingRateId={pendingShippingRateId}
+                    onSelectShippingRate={handleSelectShippingRate}
+                  />
+                )}
+              </div>
+            ) : null}
+
+            {showPaymentForm && isShippingCheckout && !showShippingSteps ? (
+              <div className={css.shippingSummary}>
+                <div className={css.shippingSummaryRow}>
+                  <div>
+                    <H4 as="h2" className={css.shippingStepHeading}>
+                      <FormattedMessage id="CheckoutPage.shipToHeading" />
+                    </H4>
+                    <p className={css.shippingSummaryText}>
+                      {[
+                        shipToAddress.name,
+                        [shipToAddress.street1, shipToAddress.streetNo].filter(Boolean).join(', '),
+                        `${shipToAddress.city}, ${shipToAddress.state} ${shipToAddress.zip}`,
+                      ].join(' · ')}
+                    </p>
+                  </div>
+                  <InlineTextButton
+                    type="button"
+                    className={css.shippingStepChange}
+                    onClick={() => setCheckoutStep(STEP_ADDRESS)}
+                  >
+                    <FormattedMessage id="CheckoutPage.changeShippingAddress" />
+                  </InlineTextButton>
+                </div>
+                {selectedShippingRate ? (
+                  <div className={css.shippingSummaryRow}>
+                    <div>
+                      <H4 as="h2" className={css.shippingStepHeading}>
+                        <FormattedMessage id="CheckoutPage.shippingMethodHeading" />
+                      </H4>
+                      <p className={css.shippingSummaryText}>
+                        {[
+                          selectedShippingRate.provider,
+                          selectedShippingRate.servicelevelName,
+                          formatShippingRatePrice(intl, selectedShippingRate),
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                    </div>
+                    <InlineTextButton
+                      type="button"
+                      className={css.shippingStepChange}
+                      onClick={() => setCheckoutStep(STEP_SHIPPING_METHOD)}
+                    >
+                      <FormattedMessage id="CheckoutPage.changeShippingMethod" />
+                    </InlineTextButton>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {showPaymentForm && !showShippingSteps ? (
               <StripePaymentForm
                 className={css.paymentForm}
                 onSubmit={values =>
-                  handleSubmit(values, process, props, stripe, submitting, setSubmitting)
+                  handleSubmit(
+                    values,
+                    process,
+                    props,
+                    stripe,
+                    submitting,
+                    setSubmitting,
+                    isShippingCheckout
+                      ? {
+                          shipToAddress,
+                          shippingRateParams: {
+                            shippingRateId: selectedShippingRate?.objectId,
+                            shipmentId: shipment?.shipmentId,
+                          },
+                        }
+                      : null
+                  )
                 }
                 inProgress={submitting}
                 formId="CheckoutPagePaymentForm"
@@ -675,7 +929,7 @@ export const CheckoutPageWithPayment = props => {
                   setStripe(stripe);
                   return onStripeInitialized(stripe, process, props);
                 }}
-                askShippingDetails={askShippingDetails}
+                askShippingDetails={false}
                 showPickUpLocation={showPickUpLocation}
                 showLocation={showLocation}
                 listingLocation={listingLocation}

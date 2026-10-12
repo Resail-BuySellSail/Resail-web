@@ -104,6 +104,10 @@ const defaultDirectives = {
     // Giphy
     '*.giphy.com',
 
+    // Shippo carrier images
+    'shippo-static.s3.amazonaws.com',
+    '*.goshippo.com',
+
     // Google Analytics
     '*.google-analytics.com',
     '*.analytics.google.com',

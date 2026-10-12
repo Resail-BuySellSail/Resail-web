@@ -3,27 +3,46 @@ import classNames from 'classnames';
 
 // Import configs and util modules
 import { FormattedMessage } from '../../../../util/reactIntl';
-import {
-  LISTING_STATE_DRAFT,
-  STOCK_INFINITE_MULTIPLE_ITEMS,
-  STOCK_MULTIPLE_ITEMS,
-  propTypes,
-} from '../../../../util/types';
+import { LISTING_STATE_DRAFT, propTypes } from '../../../../util/types';
 import { displayDeliveryPickup, displayDeliveryShipping } from '../../../../util/configHelpers';
-import { types as sdkTypes } from '../../../../util/sdkLoader';
+import {
+  US_COUNTRY,
+  getListingShippingAddress,
+  getProfileShippingAddress,
+  isCompleteShippingAddress,
+} from '../../../../util/shipping';
 
 // Import shared components
-import { H3, ListingLink } from '../../../../components';
+import { H3, IconSpinner, ListingLink } from '../../../../components';
 
 // Import modules from this directory
 import EditListingDeliveryForm from './EditListingDeliveryForm';
 import css from './EditListingDeliveryPanel.module.css';
 
-const { Money } = sdkTypes;
+// Ship-from address fields. The address is saved to listing's privateData.
+// The latest saved address is also saved to currentUser's profile (privateData),
+// so that it can be used to autofill the form for the next listing.
+const getShipFromAddressInitialValues = (listing, currentUser) => {
+  const listingShippingAddress = getListingShippingAddress(listing);
+  const shippingAddress = isCompleteShippingAddress(listingShippingAddress)
+    ? listingShippingAddress
+    : getProfileShippingAddress(currentUser);
+  const { name, phone, street1, streetNo, city, state, zip, country } = shippingAddress;
+  return {
+    name: name || '',
+    phone: phone || '',
+    street1: street1 || '',
+    streetNo: streetNo || '',
+    city: city || '',
+    state: state || '',
+    zip: zip || '',
+    country: country || US_COUNTRY,
+  };
+};
 
 const getInitialValues = props => {
-  const { listing, listingTypes, marketplaceCurrency } = props;
-  const { geolocation, publicData, price } = listing?.attributes || {};
+  const { listing, listingTypes, currentUser } = props;
+  const { geolocation, publicData } = listing?.attributes || {};
 
   const listingType = listing?.attributes?.publicData?.listingType;
   const listingTypeConfig = listingTypes.find(conf => conf.listingType === listingType);
@@ -39,8 +58,10 @@ const getInitialValues = props => {
   const {
     shippingEnabled,
     pickupEnabled,
-    shippingPriceInSubunitsOneItem,
-    shippingPriceInSubunitsAdditionalItems,
+    packageLength,
+    packageWidth,
+    packageHeight,
+    packageWeight,
   } = publicData;
   const deliveryOptions = [];
 
@@ -50,16 +71,6 @@ const getInitialValues = props => {
   if (pickupEnabled || (!displayMultipleDelivery && displayPickup)) {
     deliveryOptions.push('pickup');
   }
-
-  const currency = price?.currency || marketplaceCurrency;
-  const shippingOneItemAsMoney =
-    shippingPriceInSubunitsOneItem != null
-      ? new Money(shippingPriceInSubunitsOneItem, currency)
-      : null;
-  const shippingAdditionalItemsAsMoney =
-    shippingPriceInSubunitsAdditionalItems != null
-      ? new Money(shippingPriceInSubunitsAdditionalItems, currency)
-      : null;
 
   // Initial values for the form
   return {
@@ -71,8 +82,11 @@ const getInitialValues = props => {
         }
       : { search: undefined, selectedPlace: undefined },
     deliveryOptions,
-    shippingPriceInSubunitsOneItem: shippingOneItemAsMoney,
-    shippingPriceInSubunitsAdditionalItems: shippingAdditionalItemsAsMoney,
+    ...getShipFromAddressInitialValues(listing, currentUser),
+    packageLength,
+    packageWidth,
+    packageHeight,
+    packageWeight,
   };
 };
 
@@ -86,6 +100,8 @@ const getInitialValues = props => {
  * @param {propTypes.ownListing} props.listing - The listing object
  * @param {Array<Object>} props.listingTypes - The active listing types configs
  * @param {string} props.marketplaceCurrency - The marketplace currency (e.g. 'USD')
+ * @param {propTypes.currentUser} props.currentUser - The current user
+ * @param {Function} props.onUpdateProfile - The function to save ship-from address to user's profile
  * @param {boolean} props.disabled - Whether the form is disabled
  * @param {boolean} props.ready - Whether the form is ready
  * @param {Function} props.onSubmit - The submit function
@@ -98,7 +114,11 @@ const getInitialValues = props => {
 const EditListingDeliveryPanel = props => {
   // State is needed since LocationAutocompleteInput doesn't have internal state
   // and therefore re-rendering would overwrite the values during XHR call.
-  const [state, setState] = useState({ initialValues: getInitialValues(props) });
+  const [state, setState] = useState({
+    initialValues: getInitialValues(props),
+    hasCurrentUser: !!props.currentUser?.id,
+  });
+  const [updateProfileError, setUpdateProfileError] = useState(null);
 
   const {
     className,
@@ -106,6 +126,8 @@ const EditListingDeliveryPanel = props => {
     listing,
     listingTypes,
     marketplaceCurrency,
+    currentUser,
+    onUpdateProfile,
     disabled,
     ready,
     onSubmit,
@@ -122,9 +144,12 @@ const EditListingDeliveryPanel = props => {
   const priceCurrencyValid = listing?.attributes?.price?.currency === marketplaceCurrency;
   const listingType = listing?.attributes?.publicData?.listingType;
   const listingTypeConfig = listingTypes.find(conf => conf.listingType === listingType);
-  const allowOrdersOfMultipleItems = [STOCK_MULTIPLE_ITEMS, STOCK_INFINITE_MULTIPLE_ITEMS].includes(
-    listingTypeConfig?.stockType
-  );
+  // Ship-from address is autofilled from currentUser's profile.
+  // If currentUser was not loaded on the first render, the initial values are created again.
+  const currentUserLoaded = !!currentUser?.id;
+  if (currentUserLoaded && !state.hasCurrentUser) {
+    setState({ initialValues: getInitialValues(props), hasCurrentUser: true });
+  }
 
   const panelHeadingProps = isPublished
     ? {
@@ -149,7 +174,16 @@ const EditListingDeliveryPanel = props => {
       <H3 as="h1">
         <FormattedMessage id={panelHeadingProps.id} values={{ ...panelHeadingProps.values }} />
       </H3>
-      {priceCurrencyValid ? (
+      {!priceCurrencyValid ? (
+        <div className={css.priceCurrencyInvalid}>
+          <FormattedMessage
+            id="EditListingPricingPanel.listingPriceCurrencyInvalid"
+            values={{ marketplaceCurrency }}
+          />
+        </div>
+      ) : !currentUserLoaded ? (
+        <IconSpinner />
+      ) : (
         <EditListingDeliveryForm
           className={css.form}
           initialValues={state.initialValues}
@@ -157,9 +191,19 @@ const EditListingDeliveryPanel = props => {
             const {
               building = '',
               location,
-              shippingPriceInSubunitsOneItem,
-              shippingPriceInSubunitsAdditionalItems,
               deliveryOptions,
+              name,
+              phone,
+              street1,
+              streetNo = '',
+              city,
+              state: addressState,
+              zip,
+              country,
+              packageLength,
+              packageWidth,
+              packageHeight,
+              packageWeight,
             } = values;
 
             const shippingEnabled = deliveryOptions.includes('shipping');
@@ -170,16 +214,20 @@ const EditListingDeliveryPanel = props => {
             const pickupDataMaybe =
               pickupEnabled && address ? { location: { address, building } } : {};
 
-            const shippingDataMaybe =
-              shippingEnabled && shippingPriceInSubunitsOneItem != null
-                ? {
-                    // Note: we only save the "amount" because currency should not differ from listing's price.
-                    // Money is always dealt in subunits (e.g. cents) to avoid float calculations.
-                    shippingPriceInSubunitsOneItem: shippingPriceInSubunitsOneItem.amount,
-                    shippingPriceInSubunitsAdditionalItems:
-                      shippingPriceInSubunitsAdditionalItems?.amount,
-                  }
-                : {};
+            // Parcel dimensions (in) and weight (lb) are used to fetch Shippo rates
+            const packageData = { packageLength, packageWidth, packageHeight, packageWeight };
+            const shippingDataMaybe = shippingEnabled ? packageData : {};
+
+            const shippingAddress = {
+              name,
+              phone,
+              street1,
+              streetNo,
+              city,
+              state: addressState,
+              zip,
+              country: country || US_COUNTRY,
+            };
 
             // New values for listing attributes
             const updateValues = {
@@ -189,7 +237,11 @@ const EditListingDeliveryPanel = props => {
                 ...pickupDataMaybe,
                 shippingEnabled,
                 ...shippingDataMaybe,
+                // Shipping fees are not set per listing anymore
+                shippingPriceInSubunitsOneItem: null,
+                shippingPriceInSubunitsAdditionalItems: null,
               },
+              ...(shippingEnabled ? { privateData: { shippingAddress } } : {}),
             };
 
             // Save the initialValues to state
@@ -199,31 +251,35 @@ const EditListingDeliveryPanel = props => {
               initialValues: {
                 building,
                 location: { search: address, selectedPlace: { address, origin } },
-                shippingPriceInSubunitsOneItem,
-                shippingPriceInSubunitsAdditionalItems,
                 deliveryOptions,
+                ...shippingAddress,
+                ...packageData,
               },
+              hasCurrentUser: true,
             });
-            onSubmit(updateValues);
+            setUpdateProfileError(null);
+
+            // The latest ship-from address is saved to the profile too,
+            // so that it can autofill the form for the next listing.
+            const saveShippingAddressMaybe = shippingEnabled
+              ? onUpdateProfile({ privateData: { shippingAddress } })
+              : Promise.resolve();
+
+            // Note: listing update errors are handled by onSubmit (shown as updateListingError).
+            return saveShippingAddressMaybe.then(
+              () => onSubmit(updateValues),
+              e => setUpdateProfileError(e)
+            );
           }}
           listingTypeConfig={listingTypeConfig}
-          marketplaceCurrency={marketplaceCurrency}
-          allowOrdersOfMultipleItems={allowOrdersOfMultipleItems}
           saveActionMsg={submitButtonText}
           disabled={disabled}
           ready={ready}
           updated={panelUpdated}
           updateInProgress={updateInProgress}
-          fetchErrors={errors}
+          fetchErrors={{ ...errors, updateProfileError }}
           autoFocus
         />
-      ) : (
-        <div className={css.priceCurrencyInvalid}>
-          <FormattedMessage
-            id="EditListingPricingPanel.listingPriceCurrencyInvalid"
-            values={{ marketplaceCurrency }}
-          />
-        </div>
       )}
     </main>
   );

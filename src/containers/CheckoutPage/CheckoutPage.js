@@ -20,6 +20,7 @@ import { requireListingImage } from '../../util/configHelpers';
 import { isScrollingDisabled } from '../../ducks/ui.duck';
 import { confirmCardPayment, retrievePaymentIntent } from '../../ducks/stripe.duck';
 import { savePaymentMethod } from '../../ducks/paymentMethods.duck';
+import { updateProfileThunk } from '../ProfileSettingsPage/ProfileSettingsPage.duck';
 
 // Import shared components
 import { IconSpinner, NamedRedirect, Page, TopbarSimplified } from '../../components';
@@ -36,6 +37,7 @@ import {
   confirmPayment,
   fetchTransaction,
   initiateInquiryWithoutPayment,
+  fetchShippingRates,
 } from './CheckoutPage.duck';
 
 import CheckoutPageWithPayment, {
@@ -68,6 +70,7 @@ const CheckoutPageComponent = props => {
     params,
     scrollingDisabled,
     speculateTransactionInProgress,
+    speculatedTransaction,
     onInquiryWithoutPayment,
     initiateOrderError,
     pageData,
@@ -80,6 +83,9 @@ const CheckoutPageComponent = props => {
   const routeConfiguration = useRouteConfiguration();
   const intl = useIntl();
   const isInquiryProcess = processName === INQUIRY_PROCESS_NAME;
+  // Show the loading page only for the first speculation. The transaction is speculated again
+  // when a shipping rate is selected and the checkout steps should not be unmounted then.
+  const isInitialSpeculation = speculateTransactionInProgress && !speculatedTransaction;
 
   // Handle redirection to ListingPage if required data is not available
   const listing = pageData?.listing;
@@ -120,7 +126,7 @@ const CheckoutPageComponent = props => {
       transactionFieldConfigs={transactionFieldConfigs}
       {...props}
     />
-  ) : processName && !isInquiryProcess && !speculateTransactionInProgress ? (
+  ) : processName && !isInquiryProcess && !isInitialSpeculation ? (
     <CheckoutPageWithPayment
       config={config}
       routeConfiguration={routeConfiguration}
@@ -175,6 +181,9 @@ const CheckoutPage = props => {
     initiateInquiryError,
     initiateOrderError,
     confirmPaymentError,
+    shipment,
+    fetchShippingRatesInProgress,
+    fetchShippingRatesError,
   } = useSelector(state => state.CheckoutPage);
 
   const currentUser = useSelector(state => state.user.currentUser);
@@ -211,6 +220,12 @@ const CheckoutPage = props => {
     [dispatch]
   );
   const onFetchTransaction = useCallback(id => dispatch(fetchTransaction(id)), [dispatch]);
+  const onUpdateProfile = useCallback(params => dispatch(updateProfileThunk(params)).unwrap(), [
+    dispatch,
+  ]);
+  const onFetchShippingRates = useCallback(listingId => dispatch(fetchShippingRates(listingId)), [
+    dispatch,
+  ]);
   const onSavePaymentMethod = useCallback(
     (stripeCustomer, stripePaymentMethodId) =>
       dispatch(savePaymentMethod(stripeCustomer, stripePaymentMethodId)),
@@ -268,6 +283,11 @@ const CheckoutPage = props => {
       onConfirmPayment={onConfirmPayment}
       onFetchTransaction={onFetchTransaction}
       onSavePaymentMethod={onSavePaymentMethod}
+      onUpdateProfile={onUpdateProfile}
+      onFetchShippingRates={onFetchShippingRates}
+      shipment={shipment}
+      fetchShippingRatesInProgress={fetchShippingRatesInProgress}
+      fetchShippingRatesError={fetchShippingRatesError}
       pageData={pageData}
       setPageData={setPageData}
       isDataLoaded={isDataLoaded}

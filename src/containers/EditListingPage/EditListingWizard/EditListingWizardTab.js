@@ -97,6 +97,7 @@ const EditListingWizardTab = props => {
     history,
     images,
     listing,
+    currentUser,
     weeklyExceptionQueries,
     monthlyExceptionQueries,
     allExceptions,
@@ -104,6 +105,7 @@ const EditListingWizardTab = props => {
     onAddAvailabilityException,
     onDeleteAvailabilityException,
     onUpdateListing,
+    onUpdateProfile,
     onCreateListingDraft,
     onImageUpload,
     onManageDisableScrolling,
@@ -242,7 +244,12 @@ const EditListingWizardTab = props => {
     }
     case DELIVERY: {
       return (
-        <EditListingDeliveryPanel {...panelProps(DELIVERY)} marketplaceCurrency={config.currency} />
+        <EditListingDeliveryPanel
+          {...panelProps(DELIVERY)}
+          marketplaceCurrency={config.currency}
+          currentUser={currentUser}
+          onUpdateProfile={onUpdateProfile}
+        />
       );
     }
     case FILES: {

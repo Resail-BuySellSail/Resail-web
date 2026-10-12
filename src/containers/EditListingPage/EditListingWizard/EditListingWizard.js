@@ -36,6 +36,11 @@ import {
   pickCategoryFields,
 } from '../../../util/fieldHelpers';
 import { ensureCurrentUser, ensureListing } from '../../../util/data';
+import {
+  getListingShippingAddress,
+  hasCompletePackage,
+  isCompleteShippingAddress,
+} from '../../../util/shipping';
 import { getDisplayAccountType } from '../../../util/stripeConnect';
 import { INQUIRY_PROCESS_NAME, resolveLatestProcessName } from '../../../transactions/transaction';
 
@@ -274,7 +279,7 @@ const tabCompleted = (tab, listing, config, options = {}) => {
     case PRICING_AND_STOCK:
       return !!price;
     case DELIVERY:
-      return !!deliveryOptionPicked;
+      return !!deliveryOptionPicked && hasCompleteShippingDetails(listing);
     case FILES:
       return filesRequired && hasAttachedFiles;
     case LOCATION:
@@ -288,6 +293,23 @@ const tabCompleted = (tab, listing, config, options = {}) => {
     default:
       return false;
   }
+};
+
+/**
+ * Check if shipping details are complete. If shipping is not enabled, nothing is required.
+ * Otherwise listing needs package size & weight in publicData and ship-from address in privateData.
+ *
+ * @param {Object} listing own listing entity
+ * @returns {boolean} true if shipping details are complete
+ */
+const hasCompleteShippingDetails = listing => {
+  const publicData = listing?.attributes?.publicData;
+  if (!publicData?.shippingEnabled) {
+    return true;
+  }
+  return (
+    hasCompletePackage(publicData) && isCompleteShippingAddress(getListingShippingAddress(listing))
+  );
 };
 
 /**
@@ -441,6 +463,7 @@ class EditListingWizard extends Component {
       showPayoutDetails: false,
       selectedListingType: null,
       mounted: false,
+      missingShippingDetails: false,
     };
     this.handleCreateFlowTabScrolling = this.handleCreateFlowTabScrolling.bind(this);
     this.handlePublishListing = this.handlePublishListing.bind(this);
@@ -488,6 +511,13 @@ class EditListingWizard extends Component {
     if (filesRequired && (fileUploadsDisabled || !allFilesUploadedAndVerified)) {
       return;
     }
+
+    // Shippo needs the ship-from address and package details to create shipping labels.
+    if (!hasCompleteShippingDetails(listing)) {
+      this.setState({ missingShippingDetails: true });
+      return;
+    }
+    this.setState({ missingShippingDetails: false });
 
     const stripeConnected = !!currentUser?.stripeAccount?.id;
     const stripeAccountData = stripeConnected ? getStripeAccountData(stripeAccount) : null;
@@ -705,6 +735,11 @@ class EditListingWizard extends Component {
 
     return (
       <div className={classes}>
+        {this.state.missingShippingDetails ? (
+          <p className={css.missingShippingDetails}>
+            <FormattedMessage id="EditListingWizard.missingShippingDetails" />
+          </p>
+        ) : null}
         <Tabs
           rootClassName={css.tabsContainer}
           navRootClassName={css.nav}
@@ -732,6 +767,7 @@ class EditListingWizard extends Component {
                 tab={tab}
                 params={params}
                 listing={listing}
+                currentUser={currentUser}
                 marketplaceTabs={tabs}
                 errors={errors}
                 handleCreateFlowTabScrolling={this.handleCreateFlowTabScrolling}

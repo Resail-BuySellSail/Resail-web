@@ -384,16 +384,16 @@ describe('transactionLineItems', () => {
           publicData: {
             ...mockListing.attributes.publicData,
             unitType: 'item',
-            shippingPriceInSubunitsOneItem: 500, // €5.00
-            shippingPriceInSubunitsAdditionalItems: 200, // €2.00
           },
         },
       };
 
+      // Shipping fee is resolved on the server from the selected Shippo rate
       const orderData = {
         stockReservationQuantity: 3,
         deliveryMethod: 'shipping',
         currency: 'EUR',
+        shippingFee: new Money(900, 'EUR'),
       };
 
       const result = transactionLineItems(
@@ -413,16 +413,16 @@ describe('transactionLineItems', () => {
         includeFor: ['customer', 'provider'],
       });
 
-      // Check shipping line item
+      // Check shipping line item: only customer pays it, the marketplace buys the shipping label
       expect(result[1]).toEqual({
         code: 'line-item/shipping-fee',
-        unitPrice: new Money(900, 'EUR'), // €5.00 + (2 * €2.00) = €9.00
+        unitPrice: new Money(900, 'EUR'),
         quantity: 1,
-        includeFor: ['customer', 'provider'],
+        includeFor: ['customer'],
       });
     });
 
-    it('should create line items for single item purchase with shipping', () => {
+    it('should not create shipping line item without a resolved shipping fee', () => {
       const listing = {
         ...mockListing,
         attributes: {
@@ -430,8 +430,6 @@ describe('transactionLineItems', () => {
           publicData: {
             ...mockListing.attributes.publicData,
             unitType: 'item',
-            shippingPriceInSubunitsOneItem: 500, // €5.00
-            shippingPriceInSubunitsAdditionalItems: 200, // €2.00
           },
         },
       };
@@ -449,15 +447,37 @@ describe('transactionLineItems', () => {
         mockCustomerCommission
       );
 
-      expect(result).toHaveLength(4); // order + shipping + provider commission + customer commission
+      expect(result).toHaveLength(3); // order + provider commission + customer commission
+      expect(result.find(li => li.code === 'line-item/shipping-fee')).toBeUndefined();
+    });
 
-      // Check shipping line item for single item
-      expect(result[1]).toEqual({
-        code: 'line-item/shipping-fee',
-        unitPrice: new Money(500, 'EUR'), // €5.00 for first item only
-        quantity: 1,
-        includeFor: ['customer', 'provider'],
-      });
+    it('should not create shipping line item if shipping fee currency differs', () => {
+      const listing = {
+        ...mockListing,
+        attributes: {
+          ...mockListing.attributes,
+          publicData: {
+            ...mockListing.attributes.publicData,
+            unitType: 'item',
+          },
+        },
+      };
+
+      const orderData = {
+        stockReservationQuantity: 1,
+        deliveryMethod: 'shipping',
+        currency: 'EUR',
+        shippingFee: new Money(500, 'USD'),
+      };
+
+      const result = transactionLineItems(
+        listing,
+        orderData,
+        mockProviderCommission,
+        mockCustomerCommission
+      );
+
+      expect(result.find(li => li.code === 'line-item/shipping-fee')).toBeUndefined();
     });
   });
 

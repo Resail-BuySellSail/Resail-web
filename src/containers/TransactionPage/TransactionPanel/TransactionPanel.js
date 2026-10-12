@@ -91,6 +91,10 @@ const allowShowingExtraInfo = (showExtraInfo, transactionPartyInfo) => {
  * @param {Function} props.actionButtons - The action buttons function
  * @param {React.ReactNode} props.orderBreakdown - The order breakdown
  * @param {React.ReactNode} props.orderPanel - The order panel
+ * @param {Object} [props.shippingLabelDetails] - Shippo label details from transaction's metadata
+ * @param {Array<string>} [props.shippingLabelErrors] - Carrier messages from the last failed label purchase
+ * @param {boolean} [props.canBuyShippingLabel] - Whether the provider can (re)buy the shipping label
+ * @param {Function} [props.onBuyShippingLabel] - The function to buy the shipping label
  * @param {object} props.config - The config
  * @param {intlShape} props.intl - The intl
  * @returns {JSX.Element} The TransactionPanel component
@@ -130,6 +134,10 @@ export class TransactionPanelComponent extends Component {
       hasViewingRights,
       transactionFieldsComponent,
       sendMessageForm,
+      shippingLabelDetails,
+      shippingLabelErrors,
+      canBuyShippingLabel,
+      onBuyShippingLabel,
     } = this.props;
 
     const hasTransitions = transitions.length > 0;
@@ -269,6 +277,12 @@ export class TransactionPanelComponent extends Component {
                   protectedData={protectedData}
                   listing={listing}
                   locale={config.localization.locale}
+                  shippingLabelDetails={shippingLabelDetails}
+                  shippingLabelErrors={shippingLabelErrors}
+                  isProvider={isProvider}
+                  canBuyShippingLabel={canBuyShippingLabel}
+                  transactionId={this.props.transactionId}
+                  onBuyShippingLabel={onBuyShippingLabel}
                 />
                 <BookingLocationMaybe
                   className={css.deliveryInfoSection}

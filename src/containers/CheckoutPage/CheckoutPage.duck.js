@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
 import { pick } from '../../util/common';
-import { initiatePrivileged, transitionPrivileged } from '../../util/api';
+import { getShippingRates, initiatePrivileged, transitionPrivileged } from '../../util/api';
 import { denormalisedResponseEntities } from '../../util/data';
 import { storableError } from '../../util/errors';
 import * as log from '../../util/log';
@@ -23,12 +23,22 @@ const initiateOrderPayloadCreator = (
   // If we already have a transaction ID, we should transition, not initiate.
   const isTransition = !!transactionId;
 
-  const { deliveryMethod, quantity, bookingDates, ...otherOrderParams } = orderParams;
+  const {
+    deliveryMethod,
+    quantity,
+    bookingDates,
+    shippingRateId,
+    ...otherOrderParams
+  } = orderParams;
   const quantityMaybe = quantity ? { stockReservationQuantity: quantity } : {};
   const bookingParamsMaybe = bookingDates || {};
 
   // Parameters only for client app's server
-  const orderData = deliveryMethod ? { deliveryMethod } : {};
+  // Note: the shipping fee is fetched from Shippo on the server using the selected rate.
+  const orderData = {
+    ...(deliveryMethod ? { deliveryMethod } : {}),
+    ...(shippingRateId ? { shippingRateId } : {}),
+  };
 
   // Parameters for Marketplace API
   const transitionParams = {
@@ -298,15 +308,18 @@ const speculateTransactionPayloadCreator = (
     priceVariantName,
     quantity,
     bookingDates,
+    shippingRateId,
     ...otherOrderParams
   } = orderParams;
   const quantityMaybe = quantity ? { stockReservationQuantity: quantity } : {};
   const bookingParamsMaybe = bookingDates || {};
 
   // Parameters only for client app's server
+  // Note: the shipping fee is fetched from Shippo on the server using the selected rate.
   const orderData = {
     ...(deliveryMethod ? { deliveryMethod } : {}),
     ...(priceVariantName ? { priceVariantName } : {}),
+    ...(shippingRateId ? { shippingRateId } : {}),
   };
 
   // Parameters for Marketplace API
@@ -435,6 +448,33 @@ export const stripeCustomer = () => dispatch => {
   return dispatch(stripeCustomerThunk({}));
 };
 
+//////////////////////////
+// Fetch Shipping Rates //
+//////////////////////////
+const fetchShippingRatesPayloadCreator = ({ listingId }, { rejectWithValue }) => {
+  return getShippingRates({ listingId })
+    .then(response => response.data)
+    .catch(e => {
+      log.error(e, 'fetch-shipping-rates-failed', { listingId: listingId?.uuid });
+      return rejectWithValue(storableError(e));
+    });
+};
+
+export const fetchShippingRatesThunk = createAsyncThunk(
+  'CheckoutPage/fetchShippingRates',
+  fetchShippingRatesPayloadCreator
+);
+/**
+ * Fetch Shippo shipping rates for the listing.
+ * Rates are based on listing's ship-from address and current user's ship-to address.
+ *
+ * @param {UUID} listingId
+ */
+export const fetchShippingRates = listingId => dispatch => {
+  // Errors are stored in Redux via rejectWithValue.
+  return dispatch(fetchShippingRatesThunk({ listingId }));
+};
+
 // ================ Slice ================ //
 
 const initialState = {
@@ -450,6 +490,9 @@ const initialState = {
   stripeCustomerFetchError: null,
   initiateInquiryInProgress: false,
   initiateInquiryError: null,
+  shipment: null,
+  fetchShippingRatesInProgress: false,
+  fetchShippingRatesError: null,
 };
 
 const checkoutPageSlice = createSlice({
@@ -486,9 +529,10 @@ const checkoutPageSlice = createSlice({
       })
       // Speculate Transaction cases
       .addCase(speculateTransactionThunk.pending, state => {
+        // Note: previous speculatedTransaction is kept, so that the order breakdown stays visible
+        // when the transaction is speculated again (e.g. after a shipping rate is selected).
         state.speculateTransactionInProgress = true;
         state.speculateTransactionError = null;
-        state.speculatedTransaction = null;
       })
       .addCase(speculateTransactionThunk.fulfilled, (state, action) => {
         state.speculateTransactionInProgress = false;
@@ -522,6 +566,20 @@ const checkoutPageSlice = createSlice({
       .addCase(initiateInquiryThunk.rejected, (state, action) => {
         state.initiateInquiryInProgress = false;
         state.initiateInquiryError = action.payload;
+      })
+      // Fetch Shipping Rates cases
+      .addCase(fetchShippingRatesThunk.pending, state => {
+        state.fetchShippingRatesInProgress = true;
+        state.fetchShippingRatesError = null;
+        state.shipment = null;
+      })
+      .addCase(fetchShippingRatesThunk.fulfilled, (state, action) => {
+        state.fetchShippingRatesInProgress = false;
+        state.shipment = action.payload;
+      })
+      .addCase(fetchShippingRatesThunk.rejected, (state, action) => {
+        state.fetchShippingRatesInProgress = false;
+        state.fetchShippingRatesError = action.payload;
       });
   },
 });

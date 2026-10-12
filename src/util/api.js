@@ -151,3 +151,19 @@ export const createUserWithIdp = body => {
 export const deleteUserAccount = body => {
   return post('/api/delete-account', body);
 };
+
+// Fetch Shippo shipping rates for the listing. The ship-to address is read from current user's
+// privateData (shipToAddress) and the ship-from address from listing's privateData.
+//
+// See `server/api/address/shipping-rates.js` to see what data should be sent in the body.
+export const getShippingRates = body => {
+  return post('/api/address/shipping-rates', body);
+};
+
+// Buy a Shippo shipping label for the purchased transaction. Label details are saved to
+// transaction's metadata.shippingDetails. If the label exists already, it's returned.
+//
+// See `server/api/shipping/buy-label.js` to see what data should be sent in the body.
+export const buyShippingLabel = body => {
+  return post('/api/shipping/buy-label', body);
+};

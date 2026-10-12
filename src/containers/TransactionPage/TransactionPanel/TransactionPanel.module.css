@@ -388,6 +388,55 @@
 }
 
 .bookingLocationContent,
+.shippingLabelContainer {
+  margin-top: 24px;
+
+  @media (--viewportMedium) {
+    margin-top: 32px;
+  }
+}
+
+.shippingLabelContent {
+  composes: marketplaceSmallFontStyles from global;
+  margin-top: 6px;
+
+  @media (--viewportMedium) {
+    margin-top: 8px;
+  }
+}
+
+.shippingLabelRow {
+  margin: 0 0 6px 0;
+
+  @media (--viewportMedium) {
+    margin-bottom: 8px;
+  }
+}
+
+.getLabelButton {
+  margin-top: 6px;
+
+  @media (--viewportMedium) {
+    width: 240px;
+    margin-top: 8px;
+  }
+}
+
+.getLabelError {
+  color: var(--colorFail);
+  margin: 6px 0 0 0;
+}
+
+.getLabelErrorTitle,
+.getLabelErrorMessage {
+  margin: 0;
+}
+
+.getLabelErrorMessage {
+  composes: marketplaceTinyFontStyles from global;
+  margin-top: 6px;
+}
+
 .pickupInfoContent {
   composes: marketplaceSmallFontStyles from global;
   padding: 5px 0 1px 0;

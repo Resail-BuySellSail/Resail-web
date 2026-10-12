@@ -1,0 +1,117 @@
+@import '../../../styles/customMediaQueries.css';
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  @media (--viewportMedium) {
+    gap: 16px;
+  }
+}
+
+.rate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--colorGrey100);
+  border-radius: var(--borderRadiusMedium);
+  background-color: var(--colorWhite);
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transitionStyleButton);
+
+  &:hover {
+    border-color: var(--colorGrey300);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--boxShadowFilterButton);
+  }
+
+  @media (--viewportMedium) {
+    padding: 16px;
+  }
+}
+
+.rate:disabled {
+  cursor: default;
+}
+
+.rate:disabled:not(.selected) {
+  opacity: 0.5;
+}
+
+.rateSpinner {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+}
+
+.selected {
+  border-color: var(--marketplaceColor);
+
+  &:hover {
+    border-color: var(--marketplaceColor);
+  }
+}
+
+.rateHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.providerImage {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+
+  @media (--viewportMedium) {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+.rateDetails {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rateName {
+  font-weight: var(--fontWeightSemiBold);
+}
+
+.rateServiceLevel {
+  font-weight: var(--fontWeightRegular);
+}
+
+.rateDuration {
+  composes: marketplaceTinyFontStyles from global;
+  color: var(--colorGrey700);
+  margin: 0;
+}
+
+.ratePrice {
+  flex-shrink: 0;
+  font-weight: var(--fontWeightSemiBold);
+  color: var(--marketplaceColor);
+}
+
+.error {
+  color: var(--colorFail);
+  margin: 0;
+}
+
+.message {
+  composes: marketplaceTinyFontStyles from global;
+  color: var(--colorGrey700);
+  margin: 0;
+}

@@ -3,10 +3,11 @@ import { Form as FinalForm } from 'react-final-form';
 import classNames from 'classnames';
 
 // Import configs and util modules
-import appSettings from '../../../../config/settings';
 import { FormattedMessage, useIntl } from '../../../../util/reactIntl';
 import { propTypes } from '../../../../util/types';
 import { displayDeliveryPickup, displayDeliveryShipping } from '../../../../util/configHelpers';
+import { PACKAGE_DIMENSION_FIELDS, isPositiveNumber } from '../../../../util/shipping';
+import getUsaStates from '../../../../translations/usaStates';
 import {
   autocompleteSearchRequired,
   autocompletePlaceSelected,
@@ -19,15 +20,20 @@ import {
   Form,
   FieldLocationAutocompleteInput,
   Button,
-  FieldCurrencyInput,
   FieldTextInput,
   FieldCheckbox,
+  FieldPhoneNumberInput,
+  FieldSelect,
 } from '../../../../components';
 
 // Import modules from this directory
 import css from './EditListingDeliveryForm.module.css';
 
 const identity = v => v;
+
+// Parcel dimensions and weight are saved as numbers
+const parseNumber = value => (value === '' || value == null ? value : Number(value));
+const positiveNumber = message => value => (isPositiveNumber(value) ? undefined : message);
 
 /**
  * The EditListingDeliveryForm component.
@@ -38,9 +44,7 @@ const identity = v => v;
  * @param {string} [props.className] - Custom class that extends the default class for the root element
  * @param {Function} props.onSubmit - The submit function
  * @param {string} props.saveActionMsg - The save action message
- * @param {Object} props.selectedPlace - The selected place
- * @param {string} props.marketplaceCurrency - The marketplace currency
- * @param {boolean} props.hasStockInUse - Whether the stock is in use
+ * @param {Object} props.listingTypeConfig - The listing type config
  * @param {boolean} props.disabled - Whether the form is disabled
  * @param {boolean} props.ready - Whether the form is ready
  * @param {boolean} props.updated - Whether the form is updated
@@ -48,6 +52,7 @@ const identity = v => v;
  * @param {Object} props.fetchErrors - The fetch errors
  * @param {propTypes.error} [props.fetchErrors.showListingsError] - The show listings error
  * @param {propTypes.error} [props.fetchErrors.updateListingError] - The update listing error
+ * @param {propTypes.error} [props.fetchErrors.updateProfileError] - The ship-from address saving error
  * @param {boolean} props.autoFocus - Whether the form is auto focused
  * @returns {JSX.Element} The EditListingDeliveryForm component
  */
@@ -66,8 +71,6 @@ export const EditListingDeliveryForm = props => (
         pristine,
         invalid,
         listingTypeConfig,
-        marketplaceCurrency,
-        allowOrdersOfMultipleItems = false,
         saveActionMsg,
         updated,
         updateInProgress,
@@ -107,7 +110,7 @@ export const EditListingDeliveryForm = props => (
         id: 'EditListingDeliveryForm.optionalText',
       });
 
-      const { updateListingError, showListingsError } = fetchErrors || {};
+      const { updateListingError, showListingsError, updateProfileError } = fetchErrors || {};
 
       const classes = classNames(css.root, className);
       const submitReady = (updated && pristine) || ready;
@@ -128,7 +131,22 @@ export const EditListingDeliveryForm = props => (
         [css.disabled]: !shippingEnabled,
         [css.hidden]: !displayShipping,
       });
-      const currencyConfig = appSettings.getCurrencyFormatting(marketplaceCurrency);
+
+      // Shipping fields are validated only when shipping is enabled.
+      // When the validation changes, the key prop of the field needs to change too,
+      // so that the field (and its validation function) is reregistered with Final Form.
+      // See example: https://codesandbox.io/s/changing-field-level-validators-zc8ei
+      const shippingValidationKey = shippingEnabled ? 'shippingValidation' : 'noShippingValidation';
+      const requiredForShipping = messageId =>
+        shippingEnabled ? required(intl.formatMessage({ id: messageId })) : null;
+      const usaStates = getUsaStates();
+      const packageNumberValidators = (requiredMessageId, invalidMessageId) =>
+        shippingEnabled
+          ? composeValidators(
+              required(intl.formatMessage({ id: requiredMessageId })),
+              positiveNumber(intl.formatMessage({ id: invalidMessageId }))
+            )
+          : null;
 
       return (
         <Form className={classes} onSubmit={handleSubmit}>
@@ -212,77 +230,200 @@ export const EditListingDeliveryForm = props => (
           />
 
           <div className={shippingClasses}>
-            <FieldCurrencyInput
-              id={
-                formId
-                  ? `${formId}.shippingPriceInSubunitsOneItem`
-                  : 'shippingPriceInSubunitsOneItem'
-              }
-              name="shippingPriceInSubunitsOneItem"
-              className={css.input}
-              label={intl.formatMessage({
-                id: 'EditListingDeliveryForm.shippingOneItemLabel',
-              })}
-              placeholder={intl.formatMessage({
-                id: 'EditListingDeliveryForm.shippingOneItemPlaceholder',
-              })}
-              currencyConfig={currencyConfig}
-              disabled={!shippingEnabled}
-              validate={
-                shippingEnabled
-                  ? required(
-                      intl.formatMessage({
-                        id: 'EditListingDeliveryForm.shippingOneItemRequired',
-                      })
-                    )
-                  : null
-              }
-              hideErrorMessage={!shippingEnabled}
-              // Whatever parameters are being used to calculate
-              // the validation function need to be combined in such
-              // a way that, when they change, this key prop
-              // changes, thus reregistering this field (and its
-              // validation function) with Final Form.
-              // See example: https://codesandbox.io/s/changing-field-level-validators-zc8ei
-              key={shippingEnabled ? 'oneItemValidation' : 'noOneItemValidation'}
-            />
-
-            {allowOrdersOfMultipleItems ? (
-              <FieldCurrencyInput
-                id={
-                  formId
-                    ? `${formId}.shippingPriceInSubunitsAdditionalItems`
-                    : 'shippingPriceInSubunitsAdditionalItems'
-                }
-                name="shippingPriceInSubunitsAdditionalItems"
-                className={css.input}
-                label={intl.formatMessage({
-                  id: 'EditListingDeliveryForm.shippingAdditionalItemsLabel',
-                })}
-                placeholder={intl.formatMessage({
-                  id: 'EditListingDeliveryForm.shippingAdditionalItemsPlaceholder',
-                })}
-                currencyConfig={currencyConfig}
-                disabled={!shippingEnabled}
-                validate={
-                  shippingEnabled
-                    ? required(
-                        intl.formatMessage({
-                          id: 'EditListingDeliveryForm.shippingAdditionalItemsRequired',
-                        })
-                      )
-                    : null
-                }
-                hideErrorMessage={!shippingEnabled}
-                // Whatever parameters are being used to calculate
-                // the validation function need to be combined in such
-                // a way that, when they change, this key prop
-                // changes, thus reregistering this field (and its
-                // validation function) with Final Form.
-                // See example: https://codesandbox.io/s/changing-field-level-validators-zc8ei
-                key={shippingEnabled ? 'additionalItemsValidation' : 'noAdditionalItemsValidation'}
-              />
+            {updateProfileError ? (
+              <p className={css.error}>
+                <FormattedMessage id="EditListingDeliveryForm.updateProfileFailed" />
+              </p>
             ) : null}
+
+            <fieldset className={css.fieldset}>
+              <legend className={css.legend}>
+                <FormattedMessage id="EditListingDeliveryForm.shipFromHeading" />
+              </legend>
+              <p className={css.helper}>
+                <FormattedMessage id="EditListingDeliveryForm.shipFromHelper" />
+              </p>
+
+              <div className={css.formRow}>
+                <FieldTextInput
+                  id={`${formId}.name`}
+                  className={css.field}
+                  type="text"
+                  name="name"
+                  autoComplete="name"
+                  label={intl.formatMessage({ id: 'EditListingDeliveryForm.nameLabel' })}
+                  placeholder={intl.formatMessage({
+                    id: 'EditListingDeliveryForm.namePlaceholder',
+                  })}
+                  disabled={!shippingEnabled}
+                  validate={requiredForShipping('EditListingDeliveryForm.nameRequired')}
+                  hideErrorMessage={!shippingEnabled}
+                  key={`name.${shippingValidationKey}`}
+                />
+                <FieldPhoneNumberInput
+                  id={`${formId}.phone`}
+                  className={css.field}
+                  name="phone"
+                  autoComplete="tel"
+                  label={intl.formatMessage({ id: 'EditListingDeliveryForm.phoneLabel' })}
+                  placeholder={intl.formatMessage({
+                    id: 'EditListingDeliveryForm.phonePlaceholder',
+                  })}
+                  disabled={!shippingEnabled}
+                  validate={requiredForShipping('EditListingDeliveryForm.phoneRequired')}
+                  hideErrorMessage={!shippingEnabled}
+                  key={`phone.${shippingValidationKey}`}
+                />
+              </div>
+
+              <FieldTextInput
+                id={`${formId}.street1`}
+                className={css.input}
+                type="text"
+                name="street1"
+                autoComplete="address-line1"
+                label={intl.formatMessage({ id: 'EditListingDeliveryForm.streetLabel' })}
+                placeholder={intl.formatMessage({
+                  id: 'EditListingDeliveryForm.streetPlaceholder',
+                })}
+                disabled={!shippingEnabled}
+                validate={requiredForShipping('EditListingDeliveryForm.streetRequired')}
+                hideErrorMessage={!shippingEnabled}
+                key={`street1.${shippingValidationKey}`}
+              />
+
+              <FieldTextInput
+                id={`${formId}.streetNo`}
+                className={css.input}
+                type="text"
+                name="streetNo"
+                autoComplete="address-line2"
+                label={intl.formatMessage(
+                  { id: 'EditListingDeliveryForm.aptLabel' },
+                  { optionalText }
+                )}
+                placeholder={intl.formatMessage({ id: 'EditListingDeliveryForm.aptPlaceholder' })}
+                disabled={!shippingEnabled}
+              />
+
+              <div className={css.formRow}>
+                <FieldTextInput
+                  id={`${formId}.city`}
+                  className={css.field}
+                  type="text"
+                  name="city"
+                  autoComplete="address-level2"
+                  label={intl.formatMessage({ id: 'EditListingDeliveryForm.cityLabel' })}
+                  placeholder={intl.formatMessage({
+                    id: 'EditListingDeliveryForm.cityPlaceholder',
+                  })}
+                  disabled={!shippingEnabled}
+                  validate={requiredForShipping('EditListingDeliveryForm.cityRequired')}
+                  hideErrorMessage={!shippingEnabled}
+                  key={`city.${shippingValidationKey}`}
+                />
+                <FieldSelect
+                  id={`${formId}.state`}
+                  className={css.field}
+                  name="state"
+                  autoComplete="address-level1"
+                  label={intl.formatMessage({ id: 'EditListingDeliveryForm.stateLabel' })}
+                  disabled={!shippingEnabled}
+                  validate={requiredForShipping('EditListingDeliveryForm.stateRequired')}
+                  key={`state.${shippingValidationKey}`}
+                >
+                  <option disabled value="">
+                    {intl.formatMessage({ id: 'EditListingDeliveryForm.statePlaceholder' })}
+                  </option>
+                  {usaStates.map(state => (
+                    <option key={state.code} value={state.code}>
+                      {state.name}
+                    </option>
+                  ))}
+                </FieldSelect>
+              </div>
+
+              <div className={css.formRow}>
+                <FieldTextInput
+                  id={`${formId}.zip`}
+                  className={css.field}
+                  type="text"
+                  name="zip"
+                  autoComplete="postal-code"
+                  label={intl.formatMessage({ id: 'EditListingDeliveryForm.zipLabel' })}
+                  placeholder={intl.formatMessage({ id: 'EditListingDeliveryForm.zipPlaceholder' })}
+                  disabled={!shippingEnabled}
+                  validate={requiredForShipping('EditListingDeliveryForm.zipRequired')}
+                  hideErrorMessage={!shippingEnabled}
+                  key={`zip.${shippingValidationKey}`}
+                />
+                <FieldTextInput
+                  id={`${formId}.country`}
+                  className={css.field}
+                  type="text"
+                  name="country"
+                  label={intl.formatMessage({ id: 'EditListingDeliveryForm.countryLabel' })}
+                  disabled={!shippingEnabled}
+                  readOnly
+                />
+              </div>
+            </fieldset>
+
+            <fieldset className={css.fieldset}>
+              <legend className={css.legend}>
+                <FormattedMessage id="EditListingDeliveryForm.packageHeading" />
+              </legend>
+              <p className={css.helper}>
+                <FormattedMessage id="EditListingDeliveryForm.packageHelper" />
+              </p>
+              <div className={css.packageDimensions}>
+                {PACKAGE_DIMENSION_FIELDS.map(name => (
+                  <FieldTextInput
+                    key={`${name}.${shippingValidationKey}`}
+                    id={`${formId}.${name}`}
+                    className={css.packageDimension}
+                    type="number"
+                    name={name}
+                    min="0"
+                    step="0.1"
+                    inputMode="decimal"
+                    parse={parseNumber}
+                    label={intl.formatMessage({ id: `EditListingDeliveryForm.${name}Label` })}
+                    placeholder={intl.formatMessage({
+                      id: 'EditListingDeliveryForm.packageDimensionPlaceholder',
+                    })}
+                    disabled={!shippingEnabled}
+                    validate={packageNumberValidators(
+                      'EditListingDeliveryForm.packageDimensionRequired',
+                      'EditListingDeliveryForm.packageDimensionInvalid'
+                    )}
+                    hideErrorMessage={!shippingEnabled}
+                  />
+                ))}
+              </div>
+
+              <FieldTextInput
+                key={`packageWeight.${shippingValidationKey}`}
+                id={`${formId}.packageWeight`}
+                className={css.field}
+                type="number"
+                name="packageWeight"
+                min="0"
+                step="0.1"
+                inputMode="decimal"
+                parse={parseNumber}
+                label={intl.formatMessage({ id: 'EditListingDeliveryForm.packageWeightLabel' })}
+                placeholder={intl.formatMessage({
+                  id: 'EditListingDeliveryForm.packageWeightPlaceholder',
+                })}
+                disabled={!shippingEnabled}
+                validate={packageNumberValidators(
+                  'EditListingDeliveryForm.packageWeightRequired',
+                  'EditListingDeliveryForm.packageWeightInvalid'
+                )}
+                hideErrorMessage={!shippingEnabled}
+              />
+            </fieldset>
           </div>
 
           <Button

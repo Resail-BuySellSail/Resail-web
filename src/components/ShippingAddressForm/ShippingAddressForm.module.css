@@ -1,0 +1,39 @@
+@import '../../styles/customMediaQueries.css';
+
+.root {
+  display: flex;
+  flex-direction: column;
+}
+
+.formRow {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+
+  @media (--viewportMedium) {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 24px;
+  }
+}
+
+.field {
+  width: 100%;
+  margin-bottom: 24px;
+
+  @media (--viewportMedium) {
+    margin-bottom: 32px;
+  }
+}
+
+.error {
+  color: var(--colorFail);
+}
+
+.submitButton {
+  margin-top: 6px;
+
+  @media (--viewportMedium) {
+    margin-top: 8px;
+  }
+}

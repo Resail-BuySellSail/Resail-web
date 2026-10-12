@@ -20,6 +20,7 @@ import { requireListingImage } from '../../util/configHelpers';
 import { getCurrentUserTypeRoles, hasPermissionToViewData } from '../../util/userHelpers.js';
 import { userDisplayNameAsString } from '../../util/data';
 import { isMobileSafari } from '../../util/userAgent';
+import { buyShippingLabel } from '../../util/api';
 
 import {
   INQUIRY_PROCESS_NAME,
@@ -86,6 +87,7 @@ import {
   clearUploadedFiles,
   selectFileUploads,
   downloadFile,
+  fetchTransaction,
 } from './TransactionPage.duck';
 import css from './TransactionPage.module.css';
 
@@ -379,6 +381,7 @@ export const TransactionPageComponent = props => {
     onDownloadFile,
     fileDownloads,
     fileUploadsDisabled,
+    onBuyShippingLabel,
     ...restOfProps
   } = props;
 
@@ -398,6 +401,12 @@ export const TransactionPageComponent = props => {
   const isTxOnPaymentPending = tx => {
     return process ? process.getState(tx) === process.states.PENDING_PAYMENT : null;
   };
+
+  // Shippo shipping label can be bought (again) by the provider after the payment is confirmed.
+  const canBuyShippingLabel =
+    isProviderRole &&
+    !!process?.states?.PURCHASED &&
+    process.getState(transaction) === process.states.PURCHASED;
 
   const redirectToCheckoutPageWithInitialValues = (initialValues, currentListing) => {
     // Customize the state of the CheckoutPage with the current transaction, listing and the selected orderData
@@ -860,6 +869,10 @@ export const TransactionPageComponent = props => {
       showBookingLocation={showBookingLocation}
       hasViewingRights={hasViewingRights}
       showListingImage={showListingImage}
+      shippingLabelDetails={transaction?.attributes?.metadata?.shippingDetails}
+      shippingLabelErrors={transaction?.attributes?.metadata?.shippingLabelErrors}
+      canBuyShippingLabel={canBuyShippingLabel}
+      onBuyShippingLabel={onBuyShippingLabel}
       sendMessageForm={
         showSendMessageForm ? (
           <SendMessageForm
@@ -1150,6 +1163,7 @@ export const TransactionPageComponent = props => {
 const TransactionPage = props => {
   const dispatch = useDispatch();
   const history = useHistory();
+  const config = useConfiguration();
 
   // State selectors
   const {
@@ -1237,6 +1251,14 @@ const TransactionPage = props => {
     (fileAttachmentId, isOwnFile) => dispatch(downloadFile(fileAttachmentId, isOwnFile)),
     [dispatch]
   );
+  // Buy Shippo label and fetch the transaction again to show the label details from metadata
+  const onBuyShippingLabel = useCallback(
+    transactionId =>
+      buyShippingLabel({ transactionId }).then(() =>
+        dispatch(fetchTransaction(transactionId, props.transactionRole, config))
+      ),
+    [dispatch, props.transactionRole, config]
+  );
 
   return (
     <TransactionPageComponent
@@ -1277,6 +1299,7 @@ const TransactionPage = props => {
       onUploadFile={onUploadFile}
       onClearUploadedFiles={onClearUploadedFiles}
       onDownloadFile={onDownloadFile}
+      onBuyShippingLabel={onBuyShippingLabel}
       fileDownloads={fileDownloads}
       history={history}
     />

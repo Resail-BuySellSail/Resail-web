@@ -1,6 +1,7 @@
 const sharetribeSdk = require('sharetribe-flex-sdk');
 const { transactionLineItems } = require('../api-util/lineItems');
 const { isIntentionToMakeOffer } = require('../api-util/negotiation');
+const { resolveShippingFeeMaybe } = require('../api-util/shippingFee');
 const {
   createCookieTokenStore,
   getSdk,
@@ -67,15 +68,20 @@ module.exports = (req, res) => {
       const { providerCommission, customerCommission } =
         commissionAsset?.type === 'jsonAsset' ? commissionAsset.attributes.data : {};
 
-      lineItems = transactionLineItems(
-        listing,
-        getFullOrderData(orderData, bodyParams, currency),
-        providerCommission,
-        customerCommission
-      );
-      metadataMaybe = getMetadata(orderData, transitionName);
+      // Shipping fee is fetched from Shippo (the rate selected by customer)
+      return resolveShippingFeeMaybe({ orderData, listing, currency, isSpeculative }).then(
+        shippingFee => {
+          lineItems = transactionLineItems(
+            listing,
+            { ...getFullOrderData(orderData, bodyParams, currency), shippingFee },
+            providerCommission,
+            customerCommission
+          );
+          metadataMaybe = getMetadata(orderData, transitionName);
 
-      return getTrustedSdk(req, res, tokenStore);
+          return getTrustedSdk(req, res, tokenStore);
+        }
+      );
     })
     .then(trustedSdk => {
       const { params } = bodyParams;

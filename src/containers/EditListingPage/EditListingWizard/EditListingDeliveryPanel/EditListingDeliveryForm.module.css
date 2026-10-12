@@ -78,6 +78,69 @@
   }
 }
 
+.fieldset {
+  border: none;
+  padding: 0;
+  margin: 0 0 24px 0;
+
+  @media (--viewportMedium) {
+    margin-bottom: 32px;
+  }
+}
+
+.legend {
+  composes: p from global;
+  font-weight: var(--fontWeightBold);
+  padding: 0;
+  margin: 0;
+}
+
+.helper {
+  composes: marketplaceTinyFontStyles from global;
+  color: var(--colorGrey700);
+  margin: 0 0 18px 0;
+
+  @media (--viewportMedium) {
+    margin-bottom: 24px;
+  }
+}
+
+.formRow {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+
+  @media (--viewportMedium) {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 24px;
+  }
+}
+
+.field {
+  composes: input;
+  width: 100%;
+
+  @media (--viewportMedium) {
+    width: calc(50% - 12px);
+  }
+}
+
+.packageDimensions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0 12px;
+
+  @media (--viewportMedium) {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0 16px;
+  }
+}
+
+.packageDimension {
+  composes: input;
+}
+
 .submitButton {
   margin-top: auto;
   margin-bottom: 24px;
