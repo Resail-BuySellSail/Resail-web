@@ -6,8 +6,13 @@ import classNames from 'classnames';
 import { FormattedMessage, useIntl } from '../../../../util/reactIntl';
 import { propTypes } from '../../../../util/types';
 import { displayDeliveryPickup, displayDeliveryShipping } from '../../../../util/configHelpers';
-import { PACKAGE_DIMENSION_FIELDS, isPositiveNumber } from '../../../../util/shipping';
-import getUsaStates from '../../../../translations/usaStates';
+import {
+  PACKAGE_DIMENSION_FIELDS,
+  SHIP_FROM_ADDRESS,
+  formatShippingAddressLine,
+  isCompleteShippingAddress,
+  isPositiveNumber,
+} from '../../../../util/shipping';
 import {
   autocompleteSearchRequired,
   autocompletePlaceSelected,
@@ -22,8 +27,7 @@ import {
   Button,
   FieldTextInput,
   FieldCheckbox,
-  FieldPhoneNumberInput,
-  FieldSelect,
+  NamedLink,
 } from '../../../../components';
 
 // Import modules from this directory
@@ -45,6 +49,7 @@ const positiveNumber = message => value => (isPositiveNumber(value) ? undefined 
  * @param {Function} props.onSubmit - The submit function
  * @param {string} props.saveActionMsg - The save action message
  * @param {Object} props.listingTypeConfig - The listing type config
+ * @param {Object} [props.shipFromAddress] - The ship-from address from the user's profile
  * @param {boolean} props.disabled - Whether the form is disabled
  * @param {boolean} props.ready - Whether the form is ready
  * @param {boolean} props.updated - Whether the form is updated
@@ -52,7 +57,6 @@ const positiveNumber = message => value => (isPositiveNumber(value) ? undefined 
  * @param {Object} props.fetchErrors - The fetch errors
  * @param {propTypes.error} [props.fetchErrors.showListingsError] - The show listings error
  * @param {propTypes.error} [props.fetchErrors.updateListingError] - The update listing error
- * @param {propTypes.error} [props.fetchErrors.updateProfileError] - The ship-from address saving error
  * @param {boolean} props.autoFocus - Whether the form is auto focused
  * @returns {JSX.Element} The EditListingDeliveryForm component
  */
@@ -71,6 +75,7 @@ export const EditListingDeliveryForm = props => (
         pristine,
         invalid,
         listingTypeConfig,
+        shipFromAddress,
         saveActionMsg,
         updated,
         updateInProgress,
@@ -110,13 +115,19 @@ export const EditListingDeliveryForm = props => (
         id: 'EditListingDeliveryForm.optionalText',
       });
 
-      const { updateListingError, showListingsError, updateProfileError } = fetchErrors || {};
+      const { updateListingError, showListingsError } = fetchErrors || {};
 
       const classes = classNames(css.root, className);
       const submitReady = (updated && pristine) || ready;
       const submitInProgress = updateInProgress;
+      // Ship-from address is managed on the Shipping addresses page
+      const hasShipFromAddress = isCompleteShippingAddress(shipFromAddress);
       const submitDisabled =
-        invalid || disabled || submitInProgress || (!shippingEnabled && !pickupEnabled);
+        invalid ||
+        disabled ||
+        submitInProgress ||
+        (!shippingEnabled && !pickupEnabled) ||
+        (shippingEnabled && !hasShipFromAddress);
 
       const shippingLabel = intl.formatMessage({ id: 'EditListingDeliveryForm.shippingLabel' });
       const pickupLabel = intl.formatMessage({ id: 'EditListingDeliveryForm.pickupLabel' });
@@ -137,9 +148,6 @@ export const EditListingDeliveryForm = props => (
       // so that the field (and its validation function) is reregistered with Final Form.
       // See example: https://codesandbox.io/s/changing-field-level-validators-zc8ei
       const shippingValidationKey = shippingEnabled ? 'shippingValidation' : 'noShippingValidation';
-      const requiredForShipping = messageId =>
-        shippingEnabled ? required(intl.formatMessage({ id: messageId })) : null;
-      const usaStates = getUsaStates();
       const packageNumberValidators = (requiredMessageId, invalidMessageId) =>
         shippingEnabled
           ? composeValidators(
@@ -230,144 +238,45 @@ export const EditListingDeliveryForm = props => (
           />
 
           <div className={shippingClasses}>
-            {updateProfileError ? (
-              <p className={css.error}>
-                <FormattedMessage id="EditListingDeliveryForm.updateProfileFailed" />
-              </p>
-            ) : null}
-
-            <fieldset className={css.fieldset}>
-              <legend className={css.legend}>
-                <FormattedMessage id="EditListingDeliveryForm.shipFromHeading" />
-              </legend>
-              <p className={css.helper}>
-                <FormattedMessage id="EditListingDeliveryForm.shipFromHelper" />
-              </p>
-
-              <div className={css.formRow}>
-                <FieldTextInput
-                  id={`${formId}.name`}
-                  className={css.field}
-                  type="text"
-                  name="name"
-                  autoComplete="name"
-                  label={intl.formatMessage({ id: 'EditListingDeliveryForm.nameLabel' })}
-                  placeholder={intl.formatMessage({
-                    id: 'EditListingDeliveryForm.namePlaceholder',
-                  })}
-                  disabled={!shippingEnabled}
-                  validate={requiredForShipping('EditListingDeliveryForm.nameRequired')}
-                  hideErrorMessage={!shippingEnabled}
-                  key={`name.${shippingValidationKey}`}
-                />
-                <FieldPhoneNumberInput
-                  id={`${formId}.phone`}
-                  className={css.field}
-                  name="phone"
-                  autoComplete="tel"
-                  label={intl.formatMessage({ id: 'EditListingDeliveryForm.phoneLabel' })}
-                  placeholder={intl.formatMessage({
-                    id: 'EditListingDeliveryForm.phonePlaceholder',
-                  })}
-                  disabled={!shippingEnabled}
-                  validate={requiredForShipping('EditListingDeliveryForm.phoneRequired')}
-                  hideErrorMessage={!shippingEnabled}
-                  key={`phone.${shippingValidationKey}`}
-                />
+            <section className={css.fieldset}>
+              <div className={css.shipFromHeader}>
+                <h2 className={css.legend}>
+                  <FormattedMessage id="EditListingDeliveryForm.shipFromHeading" />
+                </h2>
+                {hasShipFromAddress ? (
+                  <NamedLink
+                    className={css.shipFromLink}
+                    name="ShippingAddressesPage"
+                    to={{ search: `?tab=${SHIP_FROM_ADDRESS}` }}
+                  >
+                    <FormattedMessage id="EditListingDeliveryForm.changeShipFromAddress" />
+                  </NamedLink>
+                ) : null}
               </div>
-
-              <FieldTextInput
-                id={`${formId}.street1`}
-                className={css.input}
-                type="text"
-                name="street1"
-                autoComplete="address-line1"
-                label={intl.formatMessage({ id: 'EditListingDeliveryForm.streetLabel' })}
-                placeholder={intl.formatMessage({
-                  id: 'EditListingDeliveryForm.streetPlaceholder',
-                })}
-                disabled={!shippingEnabled}
-                validate={requiredForShipping('EditListingDeliveryForm.streetRequired')}
-                hideErrorMessage={!shippingEnabled}
-                key={`street1.${shippingValidationKey}`}
-              />
-
-              <FieldTextInput
-                id={`${formId}.streetNo`}
-                className={css.input}
-                type="text"
-                name="streetNo"
-                autoComplete="address-line2"
-                label={intl.formatMessage(
-                  { id: 'EditListingDeliveryForm.aptLabel' },
-                  { optionalText }
-                )}
-                placeholder={intl.formatMessage({ id: 'EditListingDeliveryForm.aptPlaceholder' })}
-                disabled={!shippingEnabled}
-              />
-
-              <div className={css.formRow}>
-                <FieldTextInput
-                  id={`${formId}.city`}
-                  className={css.field}
-                  type="text"
-                  name="city"
-                  autoComplete="address-level2"
-                  label={intl.formatMessage({ id: 'EditListingDeliveryForm.cityLabel' })}
-                  placeholder={intl.formatMessage({
-                    id: 'EditListingDeliveryForm.cityPlaceholder',
-                  })}
-                  disabled={!shippingEnabled}
-                  validate={requiredForShipping('EditListingDeliveryForm.cityRequired')}
-                  hideErrorMessage={!shippingEnabled}
-                  key={`city.${shippingValidationKey}`}
-                />
-                <FieldSelect
-                  id={`${formId}.state`}
-                  className={css.field}
-                  name="state"
-                  autoComplete="address-level1"
-                  label={intl.formatMessage({ id: 'EditListingDeliveryForm.stateLabel' })}
-                  disabled={!shippingEnabled}
-                  validate={requiredForShipping('EditListingDeliveryForm.stateRequired')}
-                  key={`state.${shippingValidationKey}`}
-                >
-                  <option disabled value="">
-                    {intl.formatMessage({ id: 'EditListingDeliveryForm.statePlaceholder' })}
-                  </option>
-                  {usaStates.map(state => (
-                    <option key={state.code} value={state.code}>
-                      {state.name}
-                    </option>
-                  ))}
-                </FieldSelect>
-              </div>
-
-              <div className={css.formRow}>
-                <FieldTextInput
-                  id={`${formId}.zip`}
-                  className={css.field}
-                  type="text"
-                  name="zip"
-                  autoComplete="postal-code"
-                  label={intl.formatMessage({ id: 'EditListingDeliveryForm.zipLabel' })}
-                  placeholder={intl.formatMessage({ id: 'EditListingDeliveryForm.zipPlaceholder' })}
-                  disabled={!shippingEnabled}
-                  validate={requiredForShipping('EditListingDeliveryForm.zipRequired')}
-                  hideErrorMessage={!shippingEnabled}
-                  key={`zip.${shippingValidationKey}`}
-                />
-                <FieldTextInput
-                  id={`${formId}.country`}
-                  className={css.field}
-                  type="text"
-                  name="country"
-                  label={intl.formatMessage({ id: 'EditListingDeliveryForm.countryLabel' })}
-                  disabled={!shippingEnabled}
-                  readOnly
-                />
-              </div>
-            </fieldset>
+              {hasShipFromAddress ? (
+                <address className={css.shipFromAddress}>
+                  <span className={css.shipFromName}>{shipFromAddress.name}</span>
+                  <span>{formatShippingAddressLine(shipFromAddress)}</span>
+                  <span>{shipFromAddress.phone}</span>
+                </address>
+              ) : (
+                <p className={classNames(css.helper, { [css.shipFromMissing]: shippingEnabled })}>
+                  <FormattedMessage
+                    id="EditListingDeliveryForm.shipFromMissing"
+                    values={{
+                      link: (
+                        <NamedLink
+                          name="ShippingAddressesPage"
+                          to={{ search: `?tab=${SHIP_FROM_ADDRESS}` }}
+                        >
+                          <FormattedMessage id="EditListingDeliveryForm.shipFromMissingLink" />
+                        </NamedLink>
+                      ),
+                    }}
+                  />
+                </p>
+              )}
+            </section>
 
             <fieldset className={css.fieldset}>
               <legend className={css.legend}>

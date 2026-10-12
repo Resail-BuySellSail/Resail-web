@@ -28,6 +28,7 @@ const ManageAccountPage = loadable(() => import(/* webpackChunkName: "ManageAcco
 const PasswordChangePage = loadable(() => import(/* webpackChunkName: "PasswordChangePage" */ '../containers/PasswordChangePage/PasswordChangePage'));
 const PasswordRecoveryPage = loadable(() => import(/* webpackChunkName: "PasswordRecoveryPage" */ '../containers/PasswordRecoveryPage/PasswordRecoveryPage'));
 const PasswordResetPage = loadable(() => import(/* webpackChunkName: "PasswordResetPage" */ '../containers/PasswordResetPage/PasswordResetPage'));
+const ShippingAddressesPage = loadable(() => import(/* webpackChunkName: "ShippingAddressesPage" */ '../containers/ShippingAddressesPage/ShippingAddressesPage'));
 const PaymentMethodsPage = loadable(() => import(/* webpackChunkName: "PaymentMethodsPage" */ '../containers/PaymentMethodsPage/PaymentMethodsPage'));
 const PrivacyPolicyPage = loadable(() => import(/* webpackChunkName: "PrivacyPolicyPage" */ '../containers/PrivacyPolicyPage/PrivacyPolicyPage'));
 const ProfilePage = loadable(() => import(/* webpackChunkName: "ProfilePage" */ '../containers/ProfilePage/ProfilePage'));
@@ -46,6 +47,7 @@ const StyleguidePage = loadable(() => import(/* webpackChunkName: "StyleguidePag
 export const ACCOUNT_SETTINGS_PAGES = [
   'ContactDetailsPage',
   'PasswordChangePage',
+  'ShippingAddressesPage',
   'StripePayoutPage',
   'PaymentMethodsPage',
   'ManageAccountPage'
@@ -345,6 +347,13 @@ const routeConfiguration = (layoutConfig, accessControlConfig) => {
       auth: true,
       authPage: 'LoginPage',
       component: PasswordChangePage,
+    },
+    {
+      path: '/account/shipping-addresses',
+      name: 'ShippingAddressesPage',
+      auth: true,
+      authPage: 'LoginPage',
+      component: ShippingAddressesPage,
     },
     {
       path: '/account/payments',

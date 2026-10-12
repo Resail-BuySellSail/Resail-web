@@ -33,9 +33,6 @@ import {
 import { NamedRedirect, Page } from '../../components';
 import TopbarContainer from '../../containers/TopbarContainer/TopbarContainer';
 
-// Import modules from parent directory
-import { updateProfileThunk } from '../ProfileSettingsPage/ProfileSettingsPage.duck';
-
 // Import modules from this directory
 import {
   requestFetchAvailabilityExceptions,
@@ -118,7 +115,6 @@ const pickRenderableImages = (
  * @param {Function} props.onCreateListingDraft - The on create listing draft function
  * @param {Function} props.onPublishListingDraft - The on publish listing draft function
  * @param {Function} props.onUpdateListing - The on update listing function
- * @param {Function} props.onUpdateProfile - The on update current user profile function
  * @param {Function} props.onImageUpload - The on image upload function
  * @param {Function} props.onRemoveListingImage - The on remove listing image function
  * @param {Function} props.onManageDisableScrolling - The on manage disable scrolling function
@@ -166,7 +162,6 @@ export const EditListingPageComponent = props => {
     onCreateListingDraft,
     onPublishListingDraft,
     onUpdateListing,
-    onUpdateProfile,
     onImageUpload,
     onRemoveListingImage,
     onManageDisableScrolling,
@@ -318,7 +313,6 @@ export const EditListingPageComponent = props => {
           onAddAvailabilityException={onAddAvailabilityException}
           onDeleteAvailabilityException={onDeleteAvailabilityException}
           onUpdateListing={onUpdateListing}
-          onUpdateProfile={onUpdateProfile}
           onCreateListingDraft={onCreateListingDraft}
           onPublishListingDraft={onPublishListingDraft}
           onPayoutDetailsChange={onPayoutDetailsChange}
@@ -419,7 +413,6 @@ const mapDispatchToProps = dispatch => ({
   onUpdateListing: (tab, values, config) => dispatch(requestUpdateListing(tab, values, config)),
   onCreateListingDraft: (values, config) => dispatch(requestCreateListingDraft(values, config)),
   onPublishListingDraft: listingId => dispatch(requestPublishListingDraft(listingId)),
-  onUpdateProfile: params => dispatch(updateProfileThunk(params)).unwrap(),
   onImageUpload: (data, listingImageConfig) =>
     dispatch(requestImageUpload(data, listingImageConfig)),
   onManageDisableScrolling: (componentId, disableScrolling) =>

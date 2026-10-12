@@ -105,7 +105,6 @@ const EditListingWizardTab = props => {
     onAddAvailabilityException,
     onDeleteAvailabilityException,
     onUpdateListing,
-    onUpdateProfile,
     onCreateListingDraft,
     onImageUpload,
     onManageDisableScrolling,
@@ -248,7 +247,6 @@ const EditListingWizardTab = props => {
           {...panelProps(DELIVERY)}
           marketplaceCurrency={config.currency}
           currentUser={currentUser}
-          onUpdateProfile={onUpdateProfile}
         />
       );
     }

@@ -2,8 +2,14 @@ import React, { useState } from 'react';
 import classNames from 'classnames';
 
 import getCountryCodes from '../../../translations/countryCodes';
-import { FormattedMessage } from '../../../util/reactIntl';
-import { ExternalLink, Heading, SecondaryButton } from '../../../components';
+import { FormattedMessage, useIntl } from '../../../util/reactIntl';
+import {
+  ExternalLink,
+  Heading,
+  InlineTextButton,
+  Modal,
+  SecondaryButton,
+} from '../../../components';
 
 import AddressLinkMaybe from './AddressLinkMaybe';
 
@@ -15,15 +21,17 @@ import css from './TransactionPanel.module.css';
  *
  * @component
  * @param {Object} props
- * @param {Object} [props.shippingLabelDetails] - { trackingNumber, trackingUrl, labelUrl }
+ * @param {Object} [props.shippingLabelDetails] - { trackingNumber, trackingUrl, labelUrl, qrCodeUrl }
  * @param {Array<string>} [props.shippingLabelErrors] - Carrier messages from the last failed attempt
  * @param {boolean} props.isProvider - Whether the current user is the provider
  * @param {boolean} props.canBuyShippingLabel - Whether the provider can buy the label
  * @param {Object} props.transactionId - The transaction id
  * @param {Function} [props.onBuyShippingLabel] - The function to buy the label
+ * @param {Function} props.onManageDisableScrolling - The function to disable scrolling (QR code modal)
  * @returns {JSX.Element|null}
  */
 const ShippingLabelMaybe = props => {
+  const intl = useIntl();
   const {
     shippingLabelDetails,
     shippingLabelErrors,
@@ -31,11 +39,15 @@ const ShippingLabelMaybe = props => {
     canBuyShippingLabel,
     transactionId,
     onBuyShippingLabel,
+    onManageDisableScrolling,
   } = props;
   const [buyLabelInProgress, setBuyLabelInProgress] = useState(false);
   const [buyLabelError, setBuyLabelError] = useState(null);
+  const [isQrCodeModalOpen, setQrCodeModalOpen] = useState(false);
 
-  const { trackingNumber, trackingUrl, labelUrl } = shippingLabelDetails || {};
+  const { trackingNumber, trackingUrl, labelUrl, qrCodeUrl } = shippingLabelDetails || {};
+  // QR code exists only for carriers that support it (e.g. USPS domestic)
+  const showQrCode = isProvider && !!qrCodeUrl && !!onManageDisableScrolling;
   const hasLabel = !!labelUrl;
   const showBuyLabelButton = isProvider && !hasLabel && canBuyShippingLabel && onBuyShippingLabel;
 
@@ -88,6 +100,13 @@ const ShippingLabelMaybe = props => {
             </ExternalLink>
           </p>
         ) : null}
+        {showQrCode ? (
+          <p className={css.shippingLabelRow}>
+            <InlineTextButton type="button" onClick={() => setQrCodeModalOpen(true)}>
+              <FormattedMessage id="TransactionPanel.showQrCode" />
+            </InlineTextButton>
+          </p>
+        ) : null}
         {showBuyLabelButton ? (
           <>
             <p className={css.shippingLabelRow}>
@@ -117,6 +136,35 @@ const ShippingLabelMaybe = props => {
           </>
         ) : null}
       </div>
+
+      {showQrCode ? (
+        <Modal
+          id={`ShippingLabelQrCode.${transactionId?.uuid || transactionId}`}
+          contentClassName={css.qrCodeModalContent}
+          isOpen={isQrCodeModalOpen}
+          onClose={() => setQrCodeModalOpen(false)}
+          onManageDisableScrolling={onManageDisableScrolling}
+          usePortal
+          closeButtonMessage={intl.formatMessage({ id: 'TransactionPanel.qrCodeModalClose' })}
+        >
+          <Heading as="h2" rootClassName={css.qrCodeModalTitle}>
+            <FormattedMessage id="TransactionPanel.qrCodeModalTitle" />
+          </Heading>
+          <p className={css.qrCodeModalHelper}>
+            <FormattedMessage id="TransactionPanel.qrCodeModalHelper" />
+          </p>
+          {isQrCodeModalOpen ? (
+            <img
+              className={css.qrCodeImage}
+              src={qrCodeUrl}
+              alt={intl.formatMessage({ id: 'TransactionPanel.qrCodeImageAlt' })}
+            />
+          ) : null}
+          <ExternalLink className={css.qrCodeLink} href={qrCodeUrl}>
+            <FormattedMessage id="TransactionPanel.qrCodeOpen" />
+          </ExternalLink>
+        </Modal>
+      ) : null}
     </div>
   );
 };
@@ -130,10 +178,12 @@ const DeliveryInfoMaybe = props => {
     listing,
     locale,
     shippingLabelDetails,
+    shippingLabelErrors,
     isProvider,
     canBuyShippingLabel,
     transactionId,
     onBuyShippingLabel,
+    onManageDisableScrolling,
   } = props;
   const classes = classNames(rootClassName || css.deliveryInfoContainer, className);
   const deliveryMethod = protectedData?.deliveryMethod;
@@ -191,10 +241,12 @@ const DeliveryInfoMaybe = props => {
         </div>
         <ShippingLabelMaybe
           shippingLabelDetails={shippingLabelDetails}
+          shippingLabelErrors={shippingLabelErrors}
           isProvider={isProvider}
           canBuyShippingLabel={canBuyShippingLabel}
           transactionId={transactionId}
           onBuyShippingLabel={onBuyShippingLabel}
+          onManageDisableScrolling={onManageDisableScrolling}
         />
       </div>
     );

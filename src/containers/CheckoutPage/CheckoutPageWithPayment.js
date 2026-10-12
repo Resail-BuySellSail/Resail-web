@@ -10,7 +10,11 @@ import {
 import { propTypes } from '../../util/types';
 import { ensureTransaction } from '../../util/data';
 import { createSlug } from '../../util/urlHelpers';
-import { getProfileShipToAddress, isCompleteShippingAddress } from '../../util/shipping';
+import {
+  SHIP_TO_ADDRESS,
+  getProfileShipToAddress,
+  isCompleteShippingAddress,
+} from '../../util/shipping';
 import {
   isTransactionInitiateListingNotFoundError,
   isTransactionsTransitionInvalidTransition,
@@ -492,7 +496,8 @@ const onStripeInitialized = (stripe, process, props) => {
  * @param {Object} props.history - The history object
  * @param {Object} props.history.push - The push state function of the history object
  * @param {Function} props.fetchSpeculatedTransaction - The function to speculate the transaction
- * @param {Function} props.onUpdateProfile - The function to save ship-to address to user's privateData
+ * @param {Function} props.onSaveShippingAddress - The function to validate (Shippo) and save the
+ * ship-to address to user's privateData
  * @param {Function} props.onFetchShippingRates - The function to fetch Shippo rates for the listing
  * @param {Object} props.shipment - Shippo shipment with rates: { shipmentId, rates, messages }
  * @param {boolean} props.fetchShippingRatesInProgress - Whether the Shippo rates are being fetched
@@ -525,7 +530,7 @@ export const CheckoutPageWithPayment = props => {
     showTransactionFields,
     config,
     fetchSpeculatedTransaction,
-    onUpdateProfile,
+    onSaveShippingAddress,
     onFetchShippingRates,
     shipment,
     fetchShippingRatesInProgress,
@@ -629,8 +634,9 @@ export const CheckoutPageWithPayment = props => {
 
     setSaveShipToAddressInProgress(true);
     setSaveShipToAddressError(null);
-    // Ship-to address is saved to the user's privateData, so that it's prefilled next time.
-    onUpdateProfile({ privateData: { shipToAddress: address } })
+    // Ship-to address is validated with Shippo and saved to the user's privateData,
+    // so that it's prefilled next time (it's also managed on the Shipping addresses page).
+    onSaveShippingAddress({ addressType: SHIP_TO_ADDRESS, address })
       .then(() => {
         setSaveShipToAddressInProgress(false);
         didAutoAdvanceToShippingMethod.current = true;

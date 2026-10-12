@@ -1,5 +1,5 @@
 import {
-  getListingShippingAddress,
+  formatShippingAddressLine,
   getProfileShippingAddress,
   getProfileShipToAddress,
   hasCompletePackage,
@@ -30,11 +30,13 @@ describe('shipping', () => {
     });
   });
 
-  describe('getListingShippingAddress', () => {
-    it('returns the ship-from address from listing privateData', () => {
-      const listing = { attributes: { privateData: { shippingAddress: address } } };
-      expect(getListingShippingAddress(listing)).toEqual(address);
-      expect(getListingShippingAddress({ attributes: {} })).toEqual({});
+  describe('formatShippingAddressLine', () => {
+    it('formats the address to a single line', () => {
+      expect(formatShippingAddressLine(address)).toBe('1 Stable Lane, Wellington, FL 33414');
+      expect(formatShippingAddressLine({ ...address, streetNo: 'Barn 2' })).toBe(
+        '1 Stable Lane, Barn 2, Wellington, FL 33414'
+      );
+      expect(formatShippingAddressLine(undefined)).toBe('');
     });
   });
 

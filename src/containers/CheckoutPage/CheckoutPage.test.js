@@ -146,7 +146,7 @@ describe('CheckoutPage', () => {
       lineItems: lineItems.concat(shippingFeeLineItem),
       total: new Money(2500, 'USD'),
     }),
-    onUpdateProfile: () => Promise.resolve(),
+    onSaveShippingAddress: () => Promise.resolve(),
     onFetchShippingRates: noop,
     shipment: null,
     fetchShippingRatesInProgress: false,

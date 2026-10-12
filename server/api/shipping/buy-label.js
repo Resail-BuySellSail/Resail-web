@@ -86,6 +86,7 @@ module.exports = async (req, res) => {
         trackingNumber: shippoTransaction.trackingNumber,
         trackingUrl: shippoTransaction.trackingUrlProvider,
         labelUrl: shippoTransaction.labelUrl,
+        qrCodeUrl: shippoTransaction.qrCodeUrl || null,
       },
     });
   } catch (error) {

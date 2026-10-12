@@ -105,16 +105,44 @@
   }
 }
 
-.formRow {
+.shipFromHeader {
   display: flex;
-  flex-direction: column;
-  width: 100%;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 6px;
 
   @media (--viewportMedium) {
-    flex-direction: row;
-    justify-content: space-between;
-    gap: 24px;
+    margin-bottom: 8px;
   }
+}
+
+.shipFromLink {
+  composes: marketplaceSmallFontStyles from global;
+  flex-shrink: 0;
+}
+
+.shipFromAddress {
+  composes: marketplaceSmallFontStyles from global;
+  display: flex;
+  flex-direction: column;
+  font-style: normal;
+  padding: 12px;
+  border: 1px solid var(--colorGrey100);
+  border-radius: var(--borderRadiusMedium);
+  background-color: var(--colorWhite);
+
+  @media (--viewportMedium) {
+    padding: 16px;
+  }
+}
+
+.shipFromName {
+  font-weight: var(--fontWeightSemiBold);
+}
+
+.shipFromMissing {
+  color: var(--colorFail);
 }
 
 .field {

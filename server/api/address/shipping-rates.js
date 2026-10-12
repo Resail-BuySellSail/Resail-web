@@ -21,7 +21,8 @@ const mapRate = rate => ({
 /**
  * Fetch Shippo shipping rates for the given listing.
  *
- * - Ship-from address: listing's privateData.shippingAddress (read with Integration API)
+ * - Ship-from address: provider's profile.privateData.shippingAddress (read with Integration API).
+ *   Providers manage it on the Shipping addresses page, so the latest saved address is used.
  * - Ship-to address: current user's profile.privateData.shipToAddress
  * - Parcel: listing's publicData.packageLength, packageWidth, packageHeight & packageWeight
  *
@@ -48,13 +49,13 @@ const shippingRates = async (req, res) => {
     });
     const listing = listingResponse.data.data;
     const author = listingResponse.data.included?.find(i => i.type === 'user');
-    const { publicData, privateData, price, state } = listing.attributes;
+    const { publicData, price, state } = listing.attributes;
 
     if (state !== 'published' || !publicData?.shippingEnabled) {
       return res.status(400).json({ error: 'Shipping is not available for this listing' });
     }
 
-    const shipFromAddress = privateData?.shippingAddress;
+    const shipFromAddress = author?.attributes?.profile?.privateData?.shippingAddress;
     if (!isCompleteShippingAddress(shipFromAddress)) {
       return res.status(400).json({ error: 'Listing ship-from address is missing' });
     }
@@ -68,6 +69,9 @@ const shippingRates = async (req, res) => {
       addressFrom: getShippoAddress(shipFromAddress, author?.attributes?.email),
       addressTo: getShippoAddress(shipToAddress, req.email),
       parcels: [parcel],
+      // QR code lets the provider drop off the parcel without printing the label.
+      // Shippo returns it with the label for carriers that support it (e.g. USPS domestic).
+      extra: { qrCodeRequested: true },
       metadata: getShipmentMetadata(listingId),
       async: false,
     });

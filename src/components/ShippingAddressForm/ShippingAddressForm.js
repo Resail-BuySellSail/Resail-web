@@ -6,7 +6,7 @@ import classNames from 'classnames';
 import { FormattedMessage, useIntl } from '../../util/reactIntl';
 import { propTypes } from '../../util/types';
 import { required } from '../../util/validators';
-import { US_COUNTRY } from '../../util/shipping';
+import { INVALID_ADDRESS_ERROR_CODE, US_COUNTRY } from '../../util/shipping';
 import getUsaStates from '../../translations/usaStates';
 
 // Import shared components
@@ -22,6 +22,39 @@ import {
 import css from './ShippingAddressForm.module.css';
 
 /**
+ * Show the error from saving the address. If Shippo couldn't validate the address,
+ * its messages (e.g. "Multiple addresses were found...") are shown.
+ *
+ * @param {Object} props
+ * @param {Object} props.error
+ * @returns {JSX.Element} error message
+ */
+const SaveAddressError = props => {
+  const { error } = props;
+  const isInvalidAddress = error?.code === INVALID_ADDRESS_ERROR_CODE;
+  const messages = isInvalidAddress && Array.isArray(error.messages) ? error.messages : [];
+
+  return (
+    <div className={css.error} role="alert">
+      <p className={css.errorText}>
+        {isInvalidAddress ? (
+          <FormattedMessage id="ShippingAddressForm.invalidAddress" />
+        ) : (
+          <FormattedMessage id="ShippingAddressForm.saveFailed" />
+        )}
+      </p>
+      {messages.length > 0 ? (
+        <ul className={css.errorMessages}>
+          {messages.map((message, i) => (
+            <li key={i}>{message}</li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+};
+
+/**
  * US-only shipping address form. Country is always US.
  * Address shape: { name, phone, street1, streetNo, city, state, zip, country }
  *
@@ -34,7 +67,9 @@ import css from './ShippingAddressForm.module.css';
  * @param {Function} props.onSubmit - The submit function
  * @param {string} [props.submitButtonText] - The submit button text
  * @param {boolean} [props.inProgress] - Whether the submit is in progress
- * @param {propTypes.error} [props.saveAddressError] - Error from saving the address
+ * @param {propTypes.error} [props.saveAddressError] - Error from saving the address. If it has
+ * code 'invalid-address', Shippo's validation messages are shown.
+ * @param {boolean} [props.addressSaved] - Whether the address was just saved
  * @returns {JSX.Element} ShippingAddressForm component
  */
 const ShippingAddressForm = props => {
@@ -52,7 +87,9 @@ const ShippingAddressForm = props => {
           formId = 'ShippingAddressForm',
           handleSubmit,
           invalid,
+          pristine,
           inProgress,
+          addressSaved,
           submitButtonText,
           saveAddressError,
         } = formRenderProps;
@@ -157,16 +194,13 @@ const ShippingAddressForm = props => {
               />
             </div>
 
-            {saveAddressError ? (
-              <p className={css.error}>
-                <FormattedMessage id="ShippingAddressForm.saveFailed" />
-              </p>
-            ) : null}
+            {saveAddressError ? <SaveAddressError error={saveAddressError} /> : null}
 
             <PrimaryButton
               className={css.submitButton}
               type="submit"
               inProgress={inProgress}
+              ready={addressSaved && pristine}
               disabled={invalid || inProgress}
             >
               {submitButtonText || intl.formatMessage({ id: 'ShippingAddressForm.submit' })}

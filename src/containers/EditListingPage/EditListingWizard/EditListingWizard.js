@@ -37,7 +37,7 @@ import {
 } from '../../../util/fieldHelpers';
 import { ensureCurrentUser, ensureListing } from '../../../util/data';
 import {
-  getListingShippingAddress,
+  getProfileShippingAddress,
   hasCompletePackage,
   isCompleteShippingAddress,
 } from '../../../util/shipping';
@@ -279,7 +279,7 @@ const tabCompleted = (tab, listing, config, options = {}) => {
     case PRICING_AND_STOCK:
       return !!price;
     case DELIVERY:
-      return !!deliveryOptionPicked && hasCompleteShippingDetails(listing);
+      return !!deliveryOptionPicked && hasCompleteShippingDetails(listing, options.currentUser);
     case FILES:
       return filesRequired && hasAttachedFiles;
     case LOCATION:
@@ -297,18 +297,21 @@ const tabCompleted = (tab, listing, config, options = {}) => {
 
 /**
  * Check if shipping details are complete. If shipping is not enabled, nothing is required.
- * Otherwise listing needs package size & weight in publicData and ship-from address in privateData.
+ * Otherwise listing needs package dimensions & weight in publicData and the provider needs
+ * a ship-from address in profile's privateData (managed on the Shipping addresses page).
  *
  * @param {Object} listing own listing entity
+ * @param {Object} [currentUser] current user entity
  * @returns {boolean} true if shipping details are complete
  */
-const hasCompleteShippingDetails = listing => {
+const hasCompleteShippingDetails = (listing, currentUser) => {
   const publicData = listing?.attributes?.publicData;
   if (!publicData?.shippingEnabled) {
     return true;
   }
   return (
-    hasCompletePackage(publicData) && isCompleteShippingAddress(getListingShippingAddress(listing))
+    hasCompletePackage(publicData) &&
+    isCompleteShippingAddress(getProfileShippingAddress(currentUser))
   );
 };
 
@@ -513,7 +516,7 @@ class EditListingWizard extends Component {
     }
 
     // Shippo needs the ship-from address and package details to create shipping labels.
-    if (!hasCompleteShippingDetails(listing)) {
+    if (!hasCompleteShippingDetails(listing, currentUser)) {
       this.setState({ missingShippingDetails: true });
       return;
     }
@@ -627,7 +630,7 @@ class EditListingWizard extends Component {
 
     // Check if wizard tab is active / linkable.
     // When creating a new listing, we don't allow users to access next tab until the current one is completed.
-    const tabsStatus = tabsActive(isNewListingFlow, currentListing, tabs, config);
+    const tabsStatus = tabsActive(isNewListingFlow, currentListing, tabs, config, { currentUser });
 
     // Redirect user to first tab when encoutering outdated draft listings.
     if (invalidExistingListingType && isNewListingFlow && selectedTab !== tabs[0]) {

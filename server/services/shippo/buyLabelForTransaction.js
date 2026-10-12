@@ -13,7 +13,8 @@ const getLabelErrorMessages = shippoTransaction =>
 
 /**
  * Buy a Shippo label for a Sharetribe transaction and store it to the transaction's metadata:
- * metadata.shippingDetails: { transactionId, trackingNumber, trackingUrl, labelUrl }
+ * metadata.shippingDetails: { transactionId, trackingNumber, trackingUrl, labelUrl, qrCodeUrl }
+ * Note: qrCodeUrl exists only if the carrier supports QR codes (e.g. USPS domestic).
  * If the carrier rejects the label, the messages are stored to metadata.shippingLabelErrors,
  * so that the provider can see what went wrong.
  *
@@ -52,6 +53,7 @@ const buyLabelForTransaction = async (rateId, transactionId) => {
         trackingNumber: shippoTransaction.trackingNumber,
         trackingUrl: shippoTransaction.trackingUrlProvider,
         labelUrl: shippoTransaction.labelUrl,
+        qrCodeUrl: shippoTransaction.qrCodeUrl || null,
       },
       shippingTrackingNumber: shippoTransaction.trackingNumber,
       // Clear the errors of the previous attempts

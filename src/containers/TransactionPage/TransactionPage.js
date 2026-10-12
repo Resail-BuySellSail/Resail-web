@@ -873,6 +873,7 @@ export const TransactionPageComponent = props => {
       shippingLabelErrors={transaction?.attributes?.metadata?.shippingLabelErrors}
       canBuyShippingLabel={canBuyShippingLabel}
       onBuyShippingLabel={onBuyShippingLabel}
+      onManageDisableScrolling={onManageDisableScrolling}
       sendMessageForm={
         showSendMessageForm ? (
           <SendMessageForm

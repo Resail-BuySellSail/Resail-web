@@ -93,6 +93,7 @@ const allowShowingExtraInfo = (showExtraInfo, transactionPartyInfo) => {
  * @param {React.ReactNode} props.orderPanel - The order panel
  * @param {Object} [props.shippingLabelDetails] - Shippo label details from transaction's metadata
  * @param {Array<string>} [props.shippingLabelErrors] - Carrier messages from the last failed label purchase
+ * @param {Function} [props.onManageDisableScrolling] - The function to disable scrolling (QR code modal)
  * @param {boolean} [props.canBuyShippingLabel] - Whether the provider can (re)buy the shipping label
  * @param {Function} [props.onBuyShippingLabel] - The function to buy the shipping label
  * @param {object} props.config - The config
@@ -138,6 +139,7 @@ export class TransactionPanelComponent extends Component {
       shippingLabelErrors,
       canBuyShippingLabel,
       onBuyShippingLabel,
+      onManageDisableScrolling,
     } = this.props;
 
     const hasTransitions = transitions.length > 0;
@@ -283,6 +285,7 @@ export class TransactionPanelComponent extends Component {
                   canBuyShippingLabel={canBuyShippingLabel}
                   transactionId={this.props.transactionId}
                   onBuyShippingLabel={onBuyShippingLabel}
+                  onManageDisableScrolling={onManageDisableScrolling}
                 />
                 <BookingLocationMaybe
                   className={css.deliveryInfoSection}

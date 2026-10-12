@@ -20,7 +20,7 @@ import { requireListingImage } from '../../util/configHelpers';
 import { isScrollingDisabled } from '../../ducks/ui.duck';
 import { confirmCardPayment, retrievePaymentIntent } from '../../ducks/stripe.duck';
 import { savePaymentMethod } from '../../ducks/paymentMethods.duck';
-import { updateProfileThunk } from '../ProfileSettingsPage/ProfileSettingsPage.duck';
+import { saveShippingAddressThunk } from '../ShippingAddressesPage/ShippingAddressesPage.duck';
 
 // Import shared components
 import { IconSpinner, NamedRedirect, Page, TopbarSimplified } from '../../components';
@@ -220,9 +220,10 @@ const CheckoutPage = props => {
     [dispatch]
   );
   const onFetchTransaction = useCallback(id => dispatch(fetchTransaction(id)), [dispatch]);
-  const onUpdateProfile = useCallback(params => dispatch(updateProfileThunk(params)).unwrap(), [
-    dispatch,
-  ]);
+  const onSaveShippingAddress = useCallback(
+    params => dispatch(saveShippingAddressThunk(params)).unwrap(),
+    [dispatch]
+  );
   const onFetchShippingRates = useCallback(listingId => dispatch(fetchShippingRates(listingId)), [
     dispatch,
   ]);
@@ -283,7 +284,7 @@ const CheckoutPage = props => {
       onConfirmPayment={onConfirmPayment}
       onFetchTransaction={onFetchTransaction}
       onSavePaymentMethod={onSavePaymentMethod}
-      onUpdateProfile={onUpdateProfile}
+      onSaveShippingAddress={onSaveShippingAddress}
       onFetchShippingRates={onFetchShippingRates}
       shipment={shipment}
       fetchShippingRatesInProgress={fetchShippingRatesInProgress}

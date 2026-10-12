@@ -28,6 +28,21 @@
 
 .error {
   color: var(--colorFail);
+  margin-bottom: 18px;
+
+  @media (--viewportMedium) {
+    margin-bottom: 24px;
+  }
+}
+
+.errorText {
+  margin: 0;
+}
+
+.errorMessages {
+  margin: 6px 0 0 0;
+  padding-left: 18px;
+  list-style: disc;
 }
 
 .submitButton {

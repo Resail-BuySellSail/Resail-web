@@ -5,12 +5,7 @@ import classNames from 'classnames';
 import { FormattedMessage } from '../../../../util/reactIntl';
 import { LISTING_STATE_DRAFT, propTypes } from '../../../../util/types';
 import { displayDeliveryPickup, displayDeliveryShipping } from '../../../../util/configHelpers';
-import {
-  US_COUNTRY,
-  getListingShippingAddress,
-  getProfileShippingAddress,
-  isCompleteShippingAddress,
-} from '../../../../util/shipping';
+import { getProfileShippingAddress } from '../../../../util/shipping';
 
 // Import shared components
 import { H3, IconSpinner, ListingLink } from '../../../../components';
@@ -19,29 +14,8 @@ import { H3, IconSpinner, ListingLink } from '../../../../components';
 import EditListingDeliveryForm from './EditListingDeliveryForm';
 import css from './EditListingDeliveryPanel.module.css';
 
-// Ship-from address fields. The address is saved to listing's privateData.
-// The latest saved address is also saved to currentUser's profile (privateData),
-// so that it can be used to autofill the form for the next listing.
-const getShipFromAddressInitialValues = (listing, currentUser) => {
-  const listingShippingAddress = getListingShippingAddress(listing);
-  const shippingAddress = isCompleteShippingAddress(listingShippingAddress)
-    ? listingShippingAddress
-    : getProfileShippingAddress(currentUser);
-  const { name, phone, street1, streetNo, city, state, zip, country } = shippingAddress;
-  return {
-    name: name || '',
-    phone: phone || '',
-    street1: street1 || '',
-    streetNo: streetNo || '',
-    city: city || '',
-    state: state || '',
-    zip: zip || '',
-    country: country || US_COUNTRY,
-  };
-};
-
 const getInitialValues = props => {
-  const { listing, listingTypes, currentUser } = props;
+  const { listing, listingTypes } = props;
   const { geolocation, publicData } = listing?.attributes || {};
 
   const listingType = listing?.attributes?.publicData?.listingType;
@@ -82,7 +56,6 @@ const getInitialValues = props => {
         }
       : { search: undefined, selectedPlace: undefined },
     deliveryOptions,
-    ...getShipFromAddressInitialValues(listing, currentUser),
     packageLength,
     packageWidth,
     packageHeight,
@@ -100,8 +73,8 @@ const getInitialValues = props => {
  * @param {propTypes.ownListing} props.listing - The listing object
  * @param {Array<Object>} props.listingTypes - The active listing types configs
  * @param {string} props.marketplaceCurrency - The marketplace currency (e.g. 'USD')
- * @param {propTypes.currentUser} props.currentUser - The current user
- * @param {Function} props.onUpdateProfile - The function to save ship-from address to user's profile
+ * @param {propTypes.currentUser} props.currentUser - The current user. Ship-from address is read from
+ * the profile (privateData.shippingAddress). It's managed on the Shipping addresses page.
  * @param {boolean} props.disabled - Whether the form is disabled
  * @param {boolean} props.ready - Whether the form is ready
  * @param {Function} props.onSubmit - The submit function
@@ -114,11 +87,7 @@ const getInitialValues = props => {
 const EditListingDeliveryPanel = props => {
   // State is needed since LocationAutocompleteInput doesn't have internal state
   // and therefore re-rendering would overwrite the values during XHR call.
-  const [state, setState] = useState({
-    initialValues: getInitialValues(props),
-    hasCurrentUser: !!props.currentUser?.id,
-  });
-  const [updateProfileError, setUpdateProfileError] = useState(null);
+  const [state, setState] = useState({ initialValues: getInitialValues(props) });
 
   const {
     className,
@@ -127,7 +96,6 @@ const EditListingDeliveryPanel = props => {
     listingTypes,
     marketplaceCurrency,
     currentUser,
-    onUpdateProfile,
     disabled,
     ready,
     onSubmit,
@@ -144,12 +112,9 @@ const EditListingDeliveryPanel = props => {
   const priceCurrencyValid = listing?.attributes?.price?.currency === marketplaceCurrency;
   const listingType = listing?.attributes?.publicData?.listingType;
   const listingTypeConfig = listingTypes.find(conf => conf.listingType === listingType);
-  // Ship-from address is autofilled from currentUser's profile.
-  // If currentUser was not loaded on the first render, the initial values are created again.
+  // Ship-from address is always read from currentUser's profile. It's not edited on this panel.
   const currentUserLoaded = !!currentUser?.id;
-  if (currentUserLoaded && !state.hasCurrentUser) {
-    setState({ initialValues: getInitialValues(props), hasCurrentUser: true });
-  }
+  const shipFromAddress = getProfileShippingAddress(currentUser);
 
   const panelHeadingProps = isPublished
     ? {
@@ -192,14 +157,6 @@ const EditListingDeliveryPanel = props => {
               building = '',
               location,
               deliveryOptions,
-              name,
-              phone,
-              street1,
-              streetNo = '',
-              city,
-              state: addressState,
-              zip,
-              country,
               packageLength,
               packageWidth,
               packageHeight,
@@ -218,17 +175,6 @@ const EditListingDeliveryPanel = props => {
             const packageData = { packageLength, packageWidth, packageHeight, packageWeight };
             const shippingDataMaybe = shippingEnabled ? packageData : {};
 
-            const shippingAddress = {
-              name,
-              phone,
-              street1,
-              streetNo,
-              city,
-              state: addressState,
-              zip,
-              country: country || US_COUNTRY,
-            };
-
             // New values for listing attributes
             const updateValues = {
               geolocation: origin,
@@ -241,7 +187,9 @@ const EditListingDeliveryPanel = props => {
                 shippingPriceInSubunitsOneItem: null,
                 shippingPriceInSubunitsAdditionalItems: null,
               },
-              ...(shippingEnabled ? { privateData: { shippingAddress } } : {}),
+              // Ship-from address is read from the provider's profile when rates are fetched.
+              // Clear the address copy that was saved to listings earlier.
+              privateData: { shippingAddress: null },
             };
 
             // Save the initialValues to state
@@ -252,32 +200,19 @@ const EditListingDeliveryPanel = props => {
                 building,
                 location: { search: address, selectedPlace: { address, origin } },
                 deliveryOptions,
-                ...shippingAddress,
                 ...packageData,
               },
-              hasCurrentUser: true,
             });
-            setUpdateProfileError(null);
-
-            // The latest ship-from address is saved to the profile too,
-            // so that it can autofill the form for the next listing.
-            const saveShippingAddressMaybe = shippingEnabled
-              ? onUpdateProfile({ privateData: { shippingAddress } })
-              : Promise.resolve();
-
-            // Note: listing update errors are handled by onSubmit (shown as updateListingError).
-            return saveShippingAddressMaybe.then(
-              () => onSubmit(updateValues),
-              e => setUpdateProfileError(e)
-            );
+            onSubmit(updateValues);
           }}
           listingTypeConfig={listingTypeConfig}
+          shipFromAddress={shipFromAddress}
           saveActionMsg={submitButtonText}
           disabled={disabled}
           ready={ready}
           updated={panelUpdated}
           updateInProgress={updateInProgress}
-          fetchErrors={{ ...errors, updateProfileError }}
+          fetchErrors={errors}
           autoFocus
         />
       )}

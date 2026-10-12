@@ -152,8 +152,17 @@ export const deleteUserAccount = body => {
   return post('/api/delete-account', body);
 };
 
+// Validate the shipping address with Shippo and save it to current user's privateData.
+// addressType 'shipFrom' is saved as privateData.shippingAddress and 'shipTo' as shipToAddress.
+// If Shippo can't validate the address, the error has code 'invalid-address' and messages.
+//
+// See `server/api/address/save-address.js` to see what data should be sent in the body.
+export const saveShippingAddress = body => {
+  return post('/api/address/save', body);
+};
+
 // Fetch Shippo shipping rates for the listing. The ship-to address is read from current user's
-// privateData (shipToAddress) and the ship-from address from listing's privateData.
+// privateData (shipToAddress) and the ship-from address from provider's privateData.
 //
 // See `server/api/address/shipping-rates.js` to see what data should be sent in the body.
 export const getShippingRates = body => {
