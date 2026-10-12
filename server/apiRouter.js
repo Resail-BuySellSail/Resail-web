@@ -18,6 +18,7 @@ const transitionPrivileged = require('./api/transition-privileged');
 const deleteAccount = require('./api/delete-account');
 const addressRouter = require('./api/address');
 const shippingRouter = require('./api/shipping');
+const webhooksRouter = require('./api/webhooks');
 
 const createUserWithIdp = require('./api/auth/createUserWithIdp');
 
@@ -60,6 +61,7 @@ router.post('/transition-privileged', transitionPrivileged);
 router.post('/delete-account', deleteAccount);
 router.use('/address', addressRouter);
 router.use('/shipping', shippingRouter);
+router.use('/webhooks', webhooksRouter);
 
 // Create user with identity provider (e.g. Facebook or Google)
 // This endpoint is called to create a new user after user has confirmed
