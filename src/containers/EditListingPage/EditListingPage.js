@@ -33,6 +33,9 @@ import {
 import { NamedRedirect, Page } from '../../components';
 import TopbarContainer from '../../containers/TopbarContainer/TopbarContainer';
 
+// Import modules from parent directory
+import { saveShippingAddressThunk } from '../ShippingAddressesPage/ShippingAddressesPage.duck';
+
 // Import modules from this directory
 import {
   requestFetchAvailabilityExceptions,
@@ -115,6 +118,7 @@ const pickRenderableImages = (
  * @param {Function} props.onCreateListingDraft - The on create listing draft function
  * @param {Function} props.onPublishListingDraft - The on publish listing draft function
  * @param {Function} props.onUpdateListing - The on update listing function
+ * @param {Function} props.onSaveShippingAddress - Validate (Shippo) and save the seller address
  * @param {Function} props.onImageUpload - The on image upload function
  * @param {Function} props.onRemoveListingImage - The on remove listing image function
  * @param {Function} props.onManageDisableScrolling - The on manage disable scrolling function
@@ -162,6 +166,7 @@ export const EditListingPageComponent = props => {
     onCreateListingDraft,
     onPublishListingDraft,
     onUpdateListing,
+    onSaveShippingAddress,
     onImageUpload,
     onRemoveListingImage,
     onManageDisableScrolling,
@@ -313,6 +318,7 @@ export const EditListingPageComponent = props => {
           onAddAvailabilityException={onAddAvailabilityException}
           onDeleteAvailabilityException={onDeleteAvailabilityException}
           onUpdateListing={onUpdateListing}
+          onSaveShippingAddress={onSaveShippingAddress}
           onCreateListingDraft={onCreateListingDraft}
           onPublishListingDraft={onPublishListingDraft}
           onPayoutDetailsChange={onPayoutDetailsChange}
@@ -411,6 +417,7 @@ const mapDispatchToProps = dispatch => ({
   onDeleteAvailabilityException: params => dispatch(requestDeleteAvailabilityException(params)),
 
   onUpdateListing: (tab, values, config) => dispatch(requestUpdateListing(tab, values, config)),
+  onSaveShippingAddress: params => dispatch(saveShippingAddressThunk(params)).unwrap(),
   onCreateListingDraft: (values, config) => dispatch(requestCreateListingDraft(values, config)),
   onPublishListingDraft: listingId => dispatch(requestPublishListingDraft(listingId)),
   onImageUpload: (data, listingImageConfig) =>

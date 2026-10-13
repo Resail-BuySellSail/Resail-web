@@ -15,3 +15,22 @@
 .priceCurrencyInvalid {
   color: var(--colorFail);
 }
+
+.addressModalContent {
+  display: flex;
+  flex-direction: column;
+}
+
+.addressModalTitle {
+  margin: 0;
+}
+
+.addressModalHelper {
+  composes: marketplaceSmallFontStyles from global;
+  color: var(--colorGrey700);
+  margin: 12px 0 24px 0;
+
+  @media (--viewportMedium) {
+    margin: 16px 0 32px 0;
+  }
+}

@@ -8,7 +8,6 @@ import { propTypes } from '../../../../util/types';
 import { displayDeliveryPickup, displayDeliveryShipping } from '../../../../util/configHelpers';
 import {
   PACKAGE_DIMENSION_FIELDS,
-  SHIP_FROM_ADDRESS,
   formatShippingAddressLine,
   isCompleteShippingAddress,
   isPositiveNumber,
@@ -27,7 +26,7 @@ import {
   Button,
   FieldTextInput,
   FieldCheckbox,
-  NamedLink,
+  InlineTextButton,
 } from '../../../../components';
 
 // Import modules from this directory
@@ -49,7 +48,8 @@ const positiveNumber = message => value => (isPositiveNumber(value) ? undefined 
  * @param {Function} props.onSubmit - The submit function
  * @param {string} props.saveActionMsg - The save action message
  * @param {Object} props.listingTypeConfig - The listing type config
- * @param {Object} [props.shipFromAddress] - The ship-from address from the user's profile
+ * @param {Object} [props.shipFromAddress] - The seller address from the user's profile
+ * @param {Function} props.onEditShipFromAddress - Opens the seller address modal
  * @param {boolean} props.disabled - Whether the form is disabled
  * @param {boolean} props.ready - Whether the form is ready
  * @param {boolean} props.updated - Whether the form is updated
@@ -76,6 +76,7 @@ export const EditListingDeliveryForm = props => (
         invalid,
         listingTypeConfig,
         shipFromAddress,
+        onEditShipFromAddress,
         saveActionMsg,
         updated,
         updateInProgress,
@@ -120,14 +121,10 @@ export const EditListingDeliveryForm = props => (
       const classes = classNames(css.root, className);
       const submitReady = (updated && pristine) || ready;
       const submitInProgress = updateInProgress;
-      // Ship-from address is managed on the Shipping addresses page
+      // If the seller address is missing, it's asked in a modal when the form is submitted
       const hasShipFromAddress = isCompleteShippingAddress(shipFromAddress);
       const submitDisabled =
-        invalid ||
-        disabled ||
-        submitInProgress ||
-        (!shippingEnabled && !pickupEnabled) ||
-        (shippingEnabled && !hasShipFromAddress);
+        invalid || disabled || submitInProgress || (!shippingEnabled && !pickupEnabled);
 
       const shippingLabel = intl.formatMessage({ id: 'EditListingDeliveryForm.shippingLabel' });
       const pickupLabel = intl.formatMessage({ id: 'EditListingDeliveryForm.pickupLabel' });
@@ -244,13 +241,14 @@ export const EditListingDeliveryForm = props => (
                   <FormattedMessage id="EditListingDeliveryForm.shipFromHeading" />
                 </h2>
                 {hasShipFromAddress ? (
-                  <NamedLink
+                  <InlineTextButton
+                    type="button"
                     className={css.shipFromLink}
-                    name="ShippingAddressesPage"
-                    to={{ search: `?tab=${SHIP_FROM_ADDRESS}` }}
+                    onClick={onEditShipFromAddress}
+                    disabled={!shippingEnabled}
                   >
                     <FormattedMessage id="EditListingDeliveryForm.changeShipFromAddress" />
-                  </NamedLink>
+                  </InlineTextButton>
                 ) : null}
               </div>
               {hasShipFromAddress ? (
@@ -260,20 +258,8 @@ export const EditListingDeliveryForm = props => (
                   <span>{shipFromAddress.phone}</span>
                 </address>
               ) : (
-                <p className={classNames(css.helper, { [css.shipFromMissing]: shippingEnabled })}>
-                  <FormattedMessage
-                    id="EditListingDeliveryForm.shipFromMissing"
-                    values={{
-                      link: (
-                        <NamedLink
-                          name="ShippingAddressesPage"
-                          to={{ search: `?tab=${SHIP_FROM_ADDRESS}` }}
-                        >
-                          <FormattedMessage id="EditListingDeliveryForm.shipFromMissingLink" />
-                        </NamedLink>
-                      ),
-                    }}
-                  />
+                <p className={css.helper}>
+                  <FormattedMessage id="EditListingDeliveryForm.shipFromAddLater" />
                 </p>
               )}
             </section>

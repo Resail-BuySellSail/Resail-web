@@ -141,10 +141,6 @@
   font-weight: var(--fontWeightSemiBold);
 }
 
-.shipFromMissing {
-  color: var(--colorFail);
-}
-
 .field {
   composes: input;
   width: 100%;

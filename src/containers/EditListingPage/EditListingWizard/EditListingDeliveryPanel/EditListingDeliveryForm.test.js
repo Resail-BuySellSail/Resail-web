@@ -49,7 +49,7 @@ describe('EditListingDeliveryForm', () => {
   it('shows the ship-from address from profile and activates submit when package is given', async () => {
     const user = userEvent.setup();
     const saveActionMsg = 'Save location';
-    renderForm({ shipFromAddress });
+    renderForm({ shipFromAddress, onEditShipFromAddress: noop });
 
     // Pickup fields
     expect(screen.getByText('EditListingDeliveryForm.address')).toBeInTheDocument();
@@ -74,15 +74,15 @@ describe('EditListingDeliveryForm', () => {
     expect(screen.getByRole('button', { name: saveActionMsg })).toBeEnabled();
   });
 
-  it('keeps submit disabled when shipping is enabled without a ship-from address', async () => {
+  it('lets the user continue without a seller address (it is asked in a modal)', async () => {
     const user = userEvent.setup();
     const saveActionMsg = 'Save location';
     renderForm({ shipFromAddress: {} });
 
     await user.click(screen.getByLabelText(/EditListingDeliveryForm.shippingLabel/i));
-    expect(screen.getByText('EditListingDeliveryForm.shipFromMissing')).toBeInTheDocument();
+    expect(screen.getByText('EditListingDeliveryForm.shipFromAddLater')).toBeInTheDocument();
 
     await fillPackage(user);
-    expect(screen.getByRole('button', { name: saveActionMsg })).toBeDisabled();
+    expect(screen.getByRole('button', { name: saveActionMsg })).toBeEnabled();
   });
 });
