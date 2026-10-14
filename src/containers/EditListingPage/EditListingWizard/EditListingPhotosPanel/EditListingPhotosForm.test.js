@@ -8,7 +8,7 @@ import { renderWithProviders as render, testingLibrary } from '../../../../util/
 
 import EditListingPhotosForm, { FieldAddImage } from './EditListingPhotosForm';
 
-const { screen, userEvent, waitFor, act } = testingLibrary;
+const { screen, userEvent, waitFor, act, fireEvent } = testingLibrary;
 
 const noop = () => null;
 
@@ -38,46 +38,96 @@ describe('EditListingDeliveryForm', () => {
 
   // TODO to test this fully, we would need to check that store's state changes correctly.
 
-  it('Check that FieldAddImage works', async () => {
-    const user = userEvent.setup();
-    const ACCEPT_IMAGES = 'image/*';
-    const tree = render(
+  const imageFile = name => new File(['hello'], name, { type: 'image/png' });
+
+  const renderFieldAddImage = (onFilesSelected, { disabled = false } = {}) =>
+    render(
       <FinalForm
         onSubmit={noop}
         mutators={{ ...arrayMutators }}
-        render={formRenderProps => {
-          return (
-            <form onSubmit={noop}>
-              <FieldAddImage
-                id="addImage"
-                name="addImage"
-                accept={ACCEPT_IMAGES}
-                label={<div>label</div>}
-                type="file"
-                disabled={false}
-                formApi={{
-                  change: noop,
-                  blur: noop,
-                }}
-                onImageUploadHandler={noop}
-                aspectWidth={1}
-                aspectHeight={1}
-              />
-            </form>
-          );
-        }}
+        render={() => (
+          <form onSubmit={noop}>
+            <FieldAddImage
+              id="addImage"
+              name="addImage"
+              accept="image/*"
+              label={<div>label</div>}
+              type="file"
+              disabled={disabled}
+              formApi={{ change: noop, blur: noop }}
+              onFilesSelected={onFilesSelected}
+              aspectWidth={1}
+              aspectHeight={1}
+            />
+          </form>
+        )}
       />
     );
 
-    // Fill mandatory attributes
-    const file = new File(['hello'], './public/static/icons/favicon-16x16.png', {
-      type: 'image/png',
-    });
-    const input = screen.getByLabelText(/label/i);
+  describe('FieldAddImage', () => {
+    it('hands every picked file over for cropping at once', async () => {
+      const user = userEvent.setup();
+      const onFilesSelected = jest.fn();
+      renderFieldAddImage(onFilesSelected);
 
-    await user.upload(input, file);
-    expect(input.files[0]).toBe(file);
-    expect(input.files.item(0)).toBe(file);
-    expect(input.files).toHaveLength(1);
+      const input = screen.getByLabelText(/label/i);
+      expect(input).toHaveAttribute('multiple');
+
+      const files = [imageFile('one.png'), imageFile('two.png'), imageFile('three.png')];
+      await user.upload(input, files);
+
+      expect(onFilesSelected).toHaveBeenCalledTimes(1);
+      expect(onFilesSelected).toHaveBeenCalledWith(files);
+    });
+
+    it('clears the input so the same file can be picked again', async () => {
+      const user = userEvent.setup();
+      const onFilesSelected = jest.fn();
+      renderFieldAddImage(onFilesSelected);
+
+      const input = screen.getByLabelText(/label/i);
+      const file = imageFile('one.png');
+
+      await user.upload(input, file);
+      await user.upload(input, file);
+
+      // Without clearing, the second pick of an identical file fires no change event at all.
+      expect(onFilesSelected).toHaveBeenCalledTimes(2);
+    });
+
+    it('hands over files dropped onto the tile', () => {
+      const onFilesSelected = jest.fn();
+      const { container } = renderFieldAddImage(onFilesSelected);
+
+      const dropZone = container.querySelector('form > div');
+      const files = [imageFile('one.png'), imageFile('two.png')];
+
+      fireEvent.drop(dropZone, { dataTransfer: { files } });
+
+      expect(onFilesSelected).toHaveBeenCalledWith(files);
+    });
+
+    it('ignores dropped files that are not images', () => {
+      const onFilesSelected = jest.fn();
+      const { container } = renderFieldAddImage(onFilesSelected);
+
+      const dropZone = container.querySelector('form > div');
+      const notAnImage = new File(['hello'], 'notes.pdf', { type: 'application/pdf' });
+
+      fireEvent.drop(dropZone, { dataTransfer: { files: [notAnImage] } });
+
+      expect(onFilesSelected).not.toHaveBeenCalled();
+    });
+
+    it('ignores drops while an upload is already running', () => {
+      const onFilesSelected = jest.fn();
+      const { container } = renderFieldAddImage(onFilesSelected, { disabled: true });
+
+      const dropZone = container.querySelector('form > div');
+
+      fireEvent.drop(dropZone, { dataTransfer: { files: [imageFile('one.png')] } });
+
+      expect(onFilesSelected).not.toHaveBeenCalled();
+    });
   });
 });

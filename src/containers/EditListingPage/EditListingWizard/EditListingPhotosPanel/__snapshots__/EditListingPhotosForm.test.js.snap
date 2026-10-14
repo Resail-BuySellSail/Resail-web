@@ -30,6 +30,7 @@ exports[`EditListingDeliveryForm matches snapshot 1`] = `
                 accept="image/*"
                 class="addImageInput"
                 id="addImage"
+                multiple=""
                 name="addImage"
                 type="file"
               />

@@ -19,6 +19,7 @@ import { Button, Form, AspectRatioWrapper, NamedLink } from '../../../../compone
 
 // Import modules from this directory
 import ListingImage from './ListingImage';
+import ImageCropModal from './ImageCropModal';
 import css from './EditListingPhotosForm.module.css';
 
 const ACCEPT_IMAGES = 'image/*';
@@ -103,30 +104,82 @@ const ShowListingsError = props => {
 };
 
 // Field component that uses file-input to allow user to select images.
+// Images can be picked through the file dialog or dropped onto the tile, several at a time.
+// Picked files are not uploaded from here - they're handed over to be cropped first.
 export const FieldAddImage = props => {
   const {
     formApi,
-    onImageUploadHandler,
+    onFilesSelected,
     aspectWidth = 1,
     aspectHeight = 1,
     className,
     isChoosing,
     ...rest
   } = props;
+  // Whether files are currently being dragged over the tile. Separate from the sortable drag
+  // state used for reordering images.
+  const [isDropTarget, setIsDropTarget] = useState(false);
+
   return (
     <Field form={null} {...rest}>
       {fieldprops => {
         const { accept, input, label, disabled: fieldDisabled } = fieldprops;
         const { name, type } = input;
-        const onChange = e => {
-          const file = e.target.files[0];
-          formApi.change(`addImage`, file);
+
+        const handleFiles = files => {
+          const imageFiles = Array.from(files || []).filter(file =>
+            file.type?.startsWith('image/')
+          );
+          if (imageFiles.length === 0) {
+            return;
+          }
+          formApi.change(`addImage`, imageFiles);
           formApi.blur(`addImage`);
-          onImageUploadHandler(file);
+          onFilesSelected(imageFiles);
         };
-        const inputProps = { accept, id: name, name, onChange, type };
+
+        const onChange = e => {
+          handleFiles(e.target.files);
+          // Clear the input so picking the same file again still fires a change event.
+          e.target.value = '';
+        };
+
+        // Both dragover and dragenter have to be prevented for the drop event to fire at all.
+        const onDragOver = e => {
+          e.preventDefault();
+        };
+        const onDragEnter = e => {
+          e.preventDefault();
+          if (!fieldDisabled) {
+            setIsDropTarget(true);
+          }
+        };
+        const onDragLeave = e => {
+          // dragleave also fires when moving between the tile's own children - ignore those.
+          if (e.currentTarget.contains(e.relatedTarget)) {
+            return;
+          }
+          setIsDropTarget(false);
+        };
+        const onDrop = e => {
+          e.preventDefault();
+          setIsDropTarget(false);
+          if (!fieldDisabled) {
+            handleFiles(e.dataTransfer?.files);
+          }
+        };
+
+        const inputProps = { accept, id: name, name, onChange, type, multiple: true };
         return (
-          <div className={classNames(css.addImageWrapper, className)}>
+          <div
+            className={classNames(css.addImageWrapper, className, {
+              [css.addImageWrapperDropTarget]: isDropTarget,
+            })}
+            onDragOver={onDragOver}
+            onDragEnter={onDragEnter}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
+          >
             <AspectRatioWrapper width={aspectWidth} height={aspectHeight}>
               {fieldDisabled ? null : <input {...inputProps} className={css.addImageInput} />}
               <label
@@ -223,6 +276,7 @@ const FieldListingImage = props => {
  * @param {Function} props.onSubmit - The submit function
  * @param {Function} props.onImageUpload - The image upload function
  * @param {Function} props.onRemoveImage - The remove image function
+ * @param {Function} props.onManageDisableScrolling - Scroll lock handler, used by the crop modal
  * @param {Object} props.listingImageConfig - The listing image config
  * @param {number} props.listingImageConfig.aspectWidth - The aspect width
  * @param {number} props.listingImageConfig.aspectHeight - The aspect height
@@ -232,6 +286,9 @@ const FieldListingImage = props => {
 export const EditListingPhotosForm = props => {
   const [state, setState] = useState({ imageUploadRequested: false });
   const [submittedImages, setSubmittedImages] = useState([]);
+  // Photos waiting to be cropped. Picking or dropping several at once fills this
+  // queue, and the crop modal walks through it one photo at a time.
+  const [filesToCrop, setFilesToCrop] = useState([]);
 
   // Determins which image (by new index) and direction should get focus after an arrow move.
   const [focusRequest, setFocusRequest] = useState(null);
@@ -278,18 +335,43 @@ export const EditListingPhotosForm = props => {
     syncImagesFromProps();
   }, [syncImagesFromProps]);
 
-  const onImageUploadHandler = file => {
+  const onImageUploadHandler = files => {
     const { listingImageConfig, onImageUpload } = props;
-    if (file) {
-      setState({ imageUploadRequested: true });
+    const fileList = Array.isArray(files) ? files : [files].filter(Boolean);
+    if (fileList.length === 0) {
+      return;
+    }
 
-      onImageUpload({ id: `${file.name}_${Date.now()}`, file }, listingImageConfig)
-        .then(() => {
-          setState({ imageUploadRequested: false });
-        })
-        .catch(() => {
-          setState({ imageUploadRequested: false });
-        });
+    setState({ imageUploadRequested: true });
+
+    // Upload one at a time so the images keep the order they were picked in - the first one
+    // becomes the listing's cover image. A failed upload is reported through uploadImageError,
+    // so it must not stop the rest of the batch.
+    fileList
+      .reduce(
+        (chain, file, index) =>
+          chain.then(() =>
+            // Promise.resolve so a handler that returns nothing can't reject the chain
+            // and silently swallow every photo after this one.
+            Promise.resolve(
+              onImageUpload({ id: `${file.name}_${Date.now()}_${index}`, file }, listingImageConfig)
+            ).catch(() => null)
+          ),
+        Promise.resolve()
+      )
+      .then(() => {
+        setState({ imageUploadRequested: false });
+      });
+  };
+
+  // Cropping runs to the end of the queue before anything is uploaded, so the batch
+  // reaches onImageUploadHandler in the order the photos were picked - the first one
+  // becomes the cover image. Closing the modal early is not an error: the photos
+  // already handled still upload, the rest are dropped.
+  const onCropQueueComplete = handledFiles => {
+    setFilesToCrop([]);
+    if (handledFiles.length > 0) {
+      onImageUploadHandler(handledFiles);
     }
   };
   const intl = useIntl();
@@ -322,6 +404,7 @@ export const EditListingPhotosForm = props => {
           allFilesUploadedAndVerified,
           filesTabParams,
           filesRequired,
+          onManageDisableScrolling,
         } = formRenderProps;
 
         formApiRef.current = form;
@@ -459,7 +542,7 @@ export const EditListingPhotosForm = props => {
                 type="file"
                 disabled={state.imageUploadRequested}
                 formApi={form}
-                onImageUploadHandler={onImageUploadHandler}
+                onFilesSelected={setFilesToCrop}
                 aspectWidth={aspectWidth}
                 aspectHeight={aspectHeight}
               />
@@ -505,6 +588,14 @@ export const EditListingPhotosForm = props => {
                 {saveActionMsg}
               </Button>
             </div>
+
+            <ImageCropModal
+              files={filesToCrop}
+              aspectWidth={aspectWidth}
+              aspectHeight={aspectHeight}
+              onComplete={onCropQueueComplete}
+              onManageDisableScrolling={onManageDisableScrolling}
+            />
           </Form>
         );
       }}

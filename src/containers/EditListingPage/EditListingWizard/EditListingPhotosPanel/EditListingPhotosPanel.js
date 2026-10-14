@@ -35,6 +35,7 @@ const getInitialValues = params => {
  * @param {boolean} props.updateInProgress - Whether the update is in progress
  * @param {Function} props.onSubmit - The submit function
  * @param {Function} props.onRemoveImage - The remove image function
+ * @param {Function} props.onManageDisableScrolling - Scroll lock handler, used by the crop modal
  * @param {Object} props.listingImageConfig - The listing image config
  * @returns {JSX.Element}
  */
@@ -52,6 +53,7 @@ const EditListingPhotosPanel = props => {
     updateInProgress,
     onSubmit,
     onRemoveImage,
+    onManageDisableScrolling,
     listingImageConfig,
     updatePageTitle: UpdatePageTitle,
     intl,
@@ -100,6 +102,7 @@ const EditListingPhotosPanel = props => {
           onSubmit(updateValues);
         }}
         onRemoveImage={onRemoveImage}
+        onManageDisableScrolling={onManageDisableScrolling}
         saveActionMsg={submitButtonText}
         updated={panelUpdated}
         updateInProgress={updateInProgress}

@@ -304,7 +304,7 @@
   "EditListingPage.titleCreateListing": "Neuen Eintrag erstellen | {panelHeading}",
   "EditListingPage.titleEditListing": "Eintrag bearbeiten | {panelHeading}",
   "EditListingPhotosForm.addImagesTip": "Tipp: Lade 2–3 hochwertige Fotos aus verschiedenen Blickwinkeln hoch.",
-  "EditListingPhotosForm.chooseImage": "+ Füge ein Foto hinzu…",
+  "EditListingPhotosForm.chooseImage": "+ Fotos hinzufügen…",
   "EditListingPhotosForm.coverImageBadge": "Titelbild",
   "EditListingPhotosForm.filesNotReady": "Bevor du deinen Eintrag veröffentlichen kannst, müssen die hochgeladenen Dateien eine Sicherheitsüberprüfung bestehen. Überprüfe den Status im {filesTabLink}. Dein Eintrag wurde als Entwurf gespeichert.",
   "EditListingPhotosForm.filesTabLinkText": "Dateien-Tab",
@@ -1608,5 +1608,16 @@
   "TransactionPanel.qrCodeModalClose": "Schließen",
   "TransactionPanel.labelMissing": "Das Versandetikett wurde noch nicht erstellt.",
   "TransactionPanel.getLabel": "Versandetikett abrufen",
-  "TransactionPanel.getLabelFailed": "Das Versandetikett konnte nicht abgerufen werden. Bitte versuche es erneut."
+  "TransactionPanel.getLabelFailed": "Das Versandetikett konnte nicht abgerufen werden. Bitte versuche es erneut.",
+  "ImageCropModal.title": "Foto zuschneiden",
+  "ImageCropModal.instructions": "Ziehe zum Verschieben und zoome zum Anpassen, oder überspringe, um das Foto unverändert zu verwenden.",
+  "ImageCropModal.progress": "Foto {current} von {total}. Ziehe zum Verschieben und zoome zum Anpassen, oder überspringe, um es unverändert zu verwenden.",
+  "ImageCropModal.thumbnailAlt": "Foto {current} von {total}",
+  "ImageCropModal.zoom": "Zoom",
+  "ImageCropModal.close": "Schließen",
+  "ImageCropModal.crop": "Zuschneiden und hochladen",
+  "ImageCropModal.cropAndNext": "Zuschneiden, nächstes Foto",
+  "ImageCropModal.skip": "Überspringen und hochladen",
+  "ImageCropModal.skipAndNext": "Überspringen, nächstes Foto",
+  "ImageCropModal.cropFailed": "Dieses Foto konnte nicht zugeschnitten werden. Versuche es erneut oder überspringe es, um es unverändert zu verwenden."
 }

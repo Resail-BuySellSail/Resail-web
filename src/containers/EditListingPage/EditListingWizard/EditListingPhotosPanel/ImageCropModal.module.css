@@ -1,0 +1,181 @@
+@import '../../../../styles/customMediaQueries.css';
+
+.modalContainer {
+  composes: marketplaceModalBaseStyles from global;
+  /* The close button is fixed to the top of the screen with a ~66px tall tap area, so on
+     mobile the content starts below it instead of underneath. */
+  padding-top: 70px;
+  /* On phones the modal is its own full-screen scroll area. It always opens at the top, whatever
+     the page behind it was scrolled to, and scrolls on its own if it's taller than the screen. */
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+
+  @media (--viewportMedium) {
+    flex-basis: 520px;
+    min-height: auto;
+    padding-top: 60px;
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    overflow-y: visible;
+  }
+
+  /* On phones the crop tool can be taller than the screen, so the page scrolls. Only the
+     "Cancel" button itself is fixed to the top, without a background, so the scrolled text ran
+     underneath it. The nav around it becomes a fixed, full-width white bar behind the button. */
+  & > nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 66px;
+    background-color: var(--colorWhite);
+    z-index: calc(var(--zIndexModal) + 1);
+
+    @media (--viewportMedium) {
+      position: static;
+      height: auto;
+      background-color: transparent;
+    }
+  }
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.title {
+  composes: marketplaceModalTitleStyles from global;
+  margin: 0;
+}
+
+.progress {
+  composes: h5 from global;
+  color: var(--colorGrey600);
+  margin: 6px 0 18px 0;
+}
+
+/* All the photos of the batch: done, current and waiting */
+.thumbnails {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 12px 0;
+  padding: 0 0 4px 0;
+  list-style: none;
+  overflow-x: auto;
+
+  @media (--viewportMedium) {
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+}
+
+.thumbnail {
+  position: relative;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border: 2px solid transparent;
+  border-radius: var(--borderRadiusMedium);
+  overflow: hidden;
+  opacity: 0.5;
+}
+
+.thumbnailCurrent {
+  border-color: var(--marketplaceColor);
+  opacity: 1;
+}
+
+.thumbnailDone {
+  opacity: 1;
+
+  &::after {
+    content: '✓';
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: var(--colorSuccess);
+    color: var(--colorWhite);
+    font-size: 11px;
+    line-height: 16px;
+    text-align: center;
+  }
+}
+
+.thumbnailImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The cropper positions itself absolutely against this box, so it needs a
+   position and a height of its own. Portrait-ish on mobile, where the modal is
+   full screen, and capped on desktop so the buttons stay above the fold. */
+.cropViewport {
+  position: relative;
+  width: 100%;
+  height: 46vh;
+  min-height: 240px;
+  background-color: var(--colorGrey700);
+  border-radius: var(--borderRadiusMedium);
+  overflow: hidden;
+
+  @media (--viewportMedium) {
+    height: 380px;
+  }
+}
+
+.zoomControl {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 0 0;
+}
+
+.zoomLabel {
+  composes: marketplaceTinyFontStyles from global;
+  color: var(--colorGrey600);
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.zoomSlider {
+  flex-grow: 1;
+  width: 100%;
+  /* The range input is the one control here that should not inherit the app's
+     text-input styling. */
+  appearance: auto;
+  accent-color: var(--marketplaceColor);
+  cursor: pointer;
+}
+
+.error {
+  composes: h5 from global;
+  color: var(--colorFail);
+  margin: 12px 0 0 0;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 12px;
+  margin-top: 24px;
+
+  @media (--viewportMedium) {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+}

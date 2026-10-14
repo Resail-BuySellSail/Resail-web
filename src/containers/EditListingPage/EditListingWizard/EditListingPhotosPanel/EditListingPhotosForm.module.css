@@ -86,6 +86,14 @@
   pointer-events: none;
 }
 
+/* Files are being dragged over the tile, ready to be dropped */
+.addImageWrapperDropTarget {
+  & .addImage {
+    border-color: var(--colorGrey700);
+    background-color: var(--colorGrey50);
+  }
+}
+
 .addImage {
   /* Layout */
   /* Maintain aspect ratio */

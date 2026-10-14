@@ -303,7 +303,7 @@
   "EditListingPage.titleCreateListing": "Publicar anuncio | {panelHeading}",
   "EditListingPage.titleEditListing": "Editar anuncio | {panelHeading}",
   "EditListingPhotosForm.addImagesTip": "Consejo: sube las mejores 2-3 fotos desde diferentes ángulos.",
-  "EditListingPhotosForm.chooseImage": "+ Añadir una foto…",
+  "EditListingPhotosForm.chooseImage": "+ Añadir fotos…",
   "EditListingPhotosForm.filesNotReady": "Antes de poder publicar, los archivos que subiste deben pasar una verificación de seguridad. Consulta el estado en la {filesTabLink}. Tu anuncio se ha guardado como borrador.",
   "EditListingPhotosForm.filesTabLinkText": "pestaña Archivos",
   "EditListingPhotosForm.imageRequired": "Debes agregar al menos una foto.",
@@ -1608,5 +1608,16 @@
   "TransactionPanel.qrCodeModalClose": "Cerrar",
   "TransactionPanel.labelMissing": "La etiqueta de envío aún no se ha creado.",
   "TransactionPanel.getLabel": "Obtener etiqueta de envío",
-  "TransactionPanel.getLabelFailed": "No se pudo obtener la etiqueta de envío. Inténtalo de nuevo."
+  "TransactionPanel.getLabelFailed": "No se pudo obtener la etiqueta de envío. Inténtalo de nuevo.",
+  "ImageCropModal.title": "Recorta tu foto",
+  "ImageCropModal.instructions": "Arrastra para mover y haz zoom para ajustar, u omite para usar la foto tal cual.",
+  "ImageCropModal.progress": "Foto {current} de {total}. Arrastra para mover y haz zoom para ajustar, u omite para usarla tal cual.",
+  "ImageCropModal.thumbnailAlt": "Foto {current} de {total}",
+  "ImageCropModal.zoom": "Zoom",
+  "ImageCropModal.close": "Cerrar",
+  "ImageCropModal.crop": "Recortar y subir",
+  "ImageCropModal.cropAndNext": "Recortar, siguiente foto",
+  "ImageCropModal.skip": "Omitir y subir",
+  "ImageCropModal.skipAndNext": "Omitir, siguiente foto",
+  "ImageCropModal.cropFailed": "No se pudo recortar la foto. Inténtalo de nuevo u omítela para usarla tal cual."
 }

@@ -303,7 +303,7 @@
   "EditListingPage.titleCreateListing": "Déposer une annonce | {panelHeading}",
   "EditListingPage.titleEditListing": "Modifier l'annonce | {panelHeading}",
   "EditListingPhotosForm.addImagesTip": "Astuce : ajoutez 2-3 photos de bonne qualité et avec différents angles.",
-  "EditListingPhotosForm.chooseImage": "+ Ajouter une photo…",
+  "EditListingPhotosForm.chooseImage": "+ Ajouter des photos…",
   "EditListingPhotosForm.filesNotReady": "Avant de pouvoir publier, les fichiers que vous avez ajoutés doivent passer les contrôles de sécurité. Vérifiez le statut dans {filesTabLink}. Votre annonce a été enregistrée comme brouillon.",
   "EditListingPhotosForm.filesTabLinkText": "l'onglet Fichiers",
   "EditListingPhotosForm.imageRequired": "Vous devez ajouter au moins une photo.",
@@ -1608,5 +1608,16 @@
   "TransactionPanel.qrCodeModalClose": "Fermer",
   "TransactionPanel.labelMissing": "L'étiquette d'expédition n'a pas encore été créée.",
   "TransactionPanel.getLabel": "Obtenir l'étiquette d'expédition",
-  "TransactionPanel.getLabelFailed": "Impossible d'obtenir l'étiquette d'expédition. Veuillez réessayer."
+  "TransactionPanel.getLabelFailed": "Impossible d'obtenir l'étiquette d'expédition. Veuillez réessayer.",
+  "ImageCropModal.title": "Recadrer votre photo",
+  "ImageCropModal.instructions": "Faites glisser pour repositionner et zoomez pour ajuster, ou passez pour utiliser la photo telle quelle.",
+  "ImageCropModal.progress": "Photo {current} sur {total}. Faites glisser pour repositionner et zoomez pour ajuster, ou passez pour l'utiliser telle quelle.",
+  "ImageCropModal.thumbnailAlt": "Photo {current} sur {total}",
+  "ImageCropModal.zoom": "Zoom",
+  "ImageCropModal.close": "Fermer",
+  "ImageCropModal.crop": "Recadrer et importer",
+  "ImageCropModal.cropAndNext": "Recadrer, photo suivante",
+  "ImageCropModal.skip": "Passer et importer",
+  "ImageCropModal.skipAndNext": "Passer, photo suivante",
+  "ImageCropModal.cropFailed": "Impossible de recadrer cette photo. Réessayez, ou passez pour l'utiliser telle quelle."
 }
