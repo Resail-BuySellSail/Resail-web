@@ -437,6 +437,16 @@
   margin-top: 6px;
 }
 
+/* Looks like the tracking and label links next to it */
+.qrCodeButton {
+  composes: a from global;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  background: none;
+  cursor: pointer;
+}
+
 .qrCodeModalContent {
   display: flex;
   flex-direction: column;

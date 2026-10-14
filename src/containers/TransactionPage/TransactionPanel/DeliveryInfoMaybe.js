@@ -102,7 +102,11 @@ const ShippingLabelMaybe = props => {
         ) : null}
         {showQrCode ? (
           <p className={css.shippingLabelRow}>
-            <InlineTextButton type="button" onClick={() => setQrCodeModalOpen(true)}>
+            <InlineTextButton
+              rootClassName={css.qrCodeButton}
+              type="button"
+              onClick={() => setQrCodeModalOpen(true)}
+            >
               <FormattedMessage id="TransactionPanel.showQrCode" />
             </InlineTextButton>
           </p>
