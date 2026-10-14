@@ -8,6 +8,7 @@ import { propTypes } from '../../util/types';
 import { required } from '../../util/validators';
 import { INVALID_ADDRESS_ERROR_CODE, US_COUNTRY } from '../../util/shipping';
 import getUsaStates from '../../translations/usaStates';
+import getCountryCodes from '../../translations/countryCodes';
 
 // Import shared components
 import {
@@ -98,6 +99,9 @@ const ShippingAddressForm = props => {
         const requiredValidator = messageId => required(intl.formatMessage({ id: messageId }));
         const optionalText = intl.formatMessage({ id: 'ShippingAddressForm.optionalText' });
         const usaStates = getUsaStates();
+        // Only US addresses are supported: the country is shown but can't be changed
+        const usCountryName =
+          getCountryCodes(intl.locale).find(c => c.code === US_COUNTRY)?.name || US_COUNTRY;
 
         return (
           <Form className={classes} onSubmit={handleSubmit}>
@@ -184,14 +188,16 @@ const ShippingAddressForm = props => {
                 placeholder={intl.formatMessage({ id: 'ShippingAddressForm.zipPlaceholder' })}
                 validate={requiredValidator('ShippingAddressForm.zipRequired')}
               />
-              <FieldTextInput
+              <FieldSelect
                 id={`${formId}.country`}
                 className={css.field}
-                type="text"
                 name="country"
+                autoComplete="country"
                 label={intl.formatMessage({ id: 'ShippingAddressForm.countryLabel' })}
-                readOnly
-              />
+                disabled
+              >
+                <option value={US_COUNTRY}>{usCountryName}</option>
+              </FieldSelect>
             </div>
 
             {saveAddressError ? <SaveAddressError error={saveAddressError} /> : null}

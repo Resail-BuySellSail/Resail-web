@@ -27,10 +27,12 @@ const FieldHidden = props => {
   );
 };
 
+// The marketplace pays out only to US accounts: the country is preselected and can't be changed.
+const PAYOUT_COUNTRY = 'US';
+
 const CreateStripeAccountFields = props => {
   const routeConfiguration = useRouteConfiguration();
   const {
-    disabled,
     countryLabel,
     showAsRequired,
     formApi,
@@ -107,7 +109,7 @@ const CreateStripeAccountFields = props => {
       <FieldSelect
         id="country"
         name="country"
-        disabled={disabled}
+        disabled
         className={css.selectCountry}
         autoComplete="country"
         label={countryLabel}
@@ -218,6 +220,7 @@ const StripeConnectAccountForm = props => {
   return (
     <FinalForm
       {...restOfProps}
+      initialValues={{ country: PAYOUT_COUNTRY, ...restOfProps.initialValues }}
       onSubmit={values => onSubmit({ ...values, stripePublishableKey }, isUpdate)}
       mutators={{
         ...arrayMutators,
