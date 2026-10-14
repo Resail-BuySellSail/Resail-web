@@ -8,7 +8,11 @@ jest.mock('../services', () => ({
 }));
 
 const { ShippoServices } = require('../services');
-const { resolveShippingFeeMaybe } = require('./shippingFee');
+const {
+  getShippingFeeAmount,
+  getShippingFeeInSubunits,
+  resolveShippingFeeMaybe,
+} = require('./shippingFee');
 
 const { Money, UUID } = types;
 
@@ -20,6 +24,14 @@ describe('shippingFee', () => {
   beforeEach(() => {
     ShippoServices.rates.get.mockReset();
     ShippoServices.shipments.get.mockReset();
+  });
+
+  it('adds 10% markup to the Shippo rate', () => {
+    expect(getShippingFeeInSubunits('8.79')).toBe(967);
+    expect(getShippingFeeInSubunits('6.48')).toBe(713);
+    expect(getShippingFeeInSubunits('10')).toBe(1100);
+    expect(getShippingFeeAmount('8.01')).toBe('8.81');
+    expect(getShippingFeeAmount('32.99')).toBe('36.29');
   });
 
   it('resolves the shipping fee from Shippo rate', async () => {
@@ -39,7 +51,8 @@ describe('shippingFee', () => {
 
     expect(ShippoServices.rates.get).toHaveBeenCalledWith('rate-1');
     expect(ShippoServices.shipments.get).toHaveBeenCalledWith('shipment-1');
-    expect(fee).toEqual(new Money(879, 'USD'));
+    // 8.79 + 10% markup
+    expect(fee).toEqual(new Money(967, 'USD'));
   });
 
   it('rejects a rate that belongs to another listing', async () => {

@@ -3,6 +3,30 @@ const { ShippoServices } = require('../services');
 
 const { Money } = types;
 
+// Markup added on top of the Shippo rate. The customer pays the marked-up shipping fee and the
+// marketplace pays Shippo's rate for the label.
+const SHIPPING_RATE_MARKUP_PERCENT = 10;
+
+/**
+ * Get the shipping fee the customer pays for a Shippo rate (rate + markup), in subunits.
+ *
+ * @param {string|number} rateAmount Shippo rate amount, e.g. "8.79"
+ * @returns {number} shipping fee in subunits (cents), e.g. 967
+ */
+const getShippingFeeInSubunits = rateAmount => {
+  const rateInSubunits = Math.round(Number(rateAmount) * 100);
+  return Math.round((rateInSubunits * (100 + SHIPPING_RATE_MARKUP_PERCENT)) / 100);
+};
+
+/**
+ * Get the shipping fee the customer pays for a Shippo rate (rate + markup) as a decimal string,
+ * in the same format as Shippo rate amounts.
+ *
+ * @param {string|number} rateAmount Shippo rate amount, e.g. "8.79"
+ * @returns {string} shipping fee, e.g. "9.67"
+ */
+const getShippingFeeAmount = rateAmount => (getShippingFeeInSubunits(rateAmount) / 100).toFixed(2);
+
 /**
  * Shipment metadata is used to check that the selected rate belongs to the listing.
  *
@@ -20,13 +44,13 @@ const createError = (status, message) => {
 };
 
 /**
- * Resolve the shipping fee from the Shippo rate selected by the customer.
+ * Resolve the shipping fee from the Shippo rate selected by the customer (rate + markup).
  * The amount is always fetched from Shippo, so that the client app can't set the price.
  */
 const resolveShippingFee = async ({ listingId, shippingRateId, currency }) => {
   const rate = await ShippoServices.rates.get(shippingRateId);
   const shipment = await ShippoServices.shipments.get(rate.shipment);
-  const amountInSubunits = Math.round(Number(rate.amount) * 100);
+  const amountInSubunits = getShippingFeeInSubunits(rate.amount);
 
   const isValidRate =
     shipment.metadata === getShipmentMetadata(listingId) &&
@@ -64,6 +88,9 @@ const resolveShippingFeeMaybe = ({ orderData, listing, currency, isSpeculative }
 };
 
 module.exports = {
+  SHIPPING_RATE_MARKUP_PERCENT,
+  getShippingFeeInSubunits,
+  getShippingFeeAmount,
   getShipmentMetadata,
   resolveShippingFee,
   resolveShippingFeeMaybe,

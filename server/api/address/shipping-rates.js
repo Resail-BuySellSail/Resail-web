@@ -2,7 +2,7 @@ const log = require('../../log');
 const { getIntegrationSdk, handleError, serialize } = require('../../api-util/sdk');
 const { getShippoParcel } = require('../../api-util/shippingPackages');
 const { getShippoAddress, isCompleteShippingAddress } = require('../../api-util/shippingAddress');
-const { getShipmentMetadata } = require('../../api-util/shippingFee');
+const { getShipmentMetadata, getShippingFeeAmount } = require('../../api-util/shippingFee');
 const { ShippoServices } = require('../../services');
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -14,7 +14,8 @@ const mapRate = rate => ({
   servicelevelName: rate.servicelevel?.name,
   durationTerms: rate.durationTerms,
   estimatedDays: rate.estimatedDays,
-  amount: rate.amount,
+  // The customer sees and pays the rate with the marketplace markup
+  amount: getShippingFeeAmount(rate.amount),
   currency: rate.currency,
 });
 
